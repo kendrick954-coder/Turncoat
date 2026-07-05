@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TURNCOAT</title>
+<style>
+  /* ---------- Look & feel ----------
+     Palette: night-jungle green + chalk white + paint-pot accents.
+     Signature: one letter of the title is painted the wrong color —
+     there's always one that doesn't belong. */
+  :root {
+    --bg: #0d140e;
+    --panel: #16211a;
+    --line: #2c3d31;
+    --chalk: #f1efe6;
+    --muted: #8fa396;
+    --paint-red: #e63946;
+    --paint-yellow: #e9c46a;
+    --paint-teal: #2a9d8f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--chalk);
+    font-family: 'Trebuchet MS', 'Segoe UI', Verdana, sans-serif;
+  }
+  canvas { display: block; }
+
+  /* ---------- Menu overlay ---------- */
+  #menu {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(42,157,143,0.10), transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(230,57,70,0.08), transparent 50%),
+      var(--bg);
+    z-index: 20;
+  }
+  .card {
+    width: min(92vw, 420px);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 28px 26px 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  h1 {
+    font-size: 2.4rem;
+    letter-spacing: 0.14em;
+    text-align: center;
+    margin-bottom: 4px;
+    font-weight: 900;
+  }
+  h1 .odd { color: var(--paint-red); }   /* the letter that doesn't belong */
+  .tagline {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 22px;
+  }
+  label {
+    display: block;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+  input {
+    width: 100%;
+    padding: 11px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: #0f1811;
+    color: var(--chalk);
+    font-size: 1rem;
+  }
+  input:focus { outline: 2px solid var(--paint-teal); border-color: transparent; }
+  #joinCode { text-transform: uppercase; letter-spacing: 0.3em; font-weight: 700; }
+  .row { display: flex; gap: 10px; margin-top: 18px; }
+  button {
+    flex: 1;
+    padding: 12px 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    color: #10160f;
+  }
+  button:focus-visible { outline: 3px solid var(--chalk); }
+  #createBtn { background: var(--paint-yellow); }
+  #joinBtn   { background: var(--paint-teal); }
+  button:hover { filter: brightness(1.1); }
+  button:disabled { opacity: 0.5; cursor: wait; }
+  #menuError {
+    margin-top: 14px;
+    min-height: 1.2em;
+    text-align: center;
+    color: var(--paint-red);
+    font-size: 0.88rem;
+  }
+
+  /* ---------- In-game HUD ---------- */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: none;
+    justify-content: space-between;
+    padding: 12px 16px;
+    pointer-events: none;
+    z-index: 10;
+    font-size: 0.9rem;
+  }
+  .hudBox {
+    background: rgba(13, 20, 14, 0.75);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 14px;
+  }
+  #roomCodeLabel { color: var(--muted); font-size: 0.7rem; letter-spacing: 0.12em; }
+  #roomCode { font-weight: 900; letter-spacing: 0.3em; font-size: 1.1rem; }
+  #playerCount { color: var(--paint-yellow); font-weight: 700; }
+  #controlsHint {
+    position: fixed; bottom: 12px; left: 50%;
+    transform: translateX(-50%);
+    color: var(--muted);
+    font-size: 0.78rem;
+    background: rgba(13, 20, 14, 0.65);
+    border-radius: 8px;
+    padding: 6px 14px;
+    pointer-events: none;
+    z-index: 10;
+    display: none;
+    text-align: center;
+  }
+  #disconnected {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    background: rgba(13, 20, 14, 0.88);
+    z-index: 30;
+    text-align: center;
+    padding: 20px;
+    font-size: 1.05rem;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= MENU ================= -->
+<div id="menu">
+  <div class="card">
+    <h1>TURNC<span class="odd">O</span>AT</h1>
+    <div class="tagline">one of you doesn't belong &mdash; milestone 1: the room</div>
+
+    <label for="playerName">Your name</label>
+    <input id="playerName" maxlength="12" placeholder="e.g. Alex" autocomplete="off" />
+
+    <label for="joinCode">Room code (to join a friend)</label>
+    <input id="joinCode" maxlength="4" placeholder="ABCD" autocomplete="off" />
+
+    <div class="row">
+      <button id="createBtn">Create room</button>
+      <button id="joinBtn">Join room</button>
+    </div>
+    <div id="menuError"></div>
+  </div>
+</div>
+
+<!-- ================= HUD ================= -->
+<div id="hud">
+  <div class="hudBox">
+    <div id="roomCodeLabel">ROOM CODE — share with friends</div>
+    <div id="roomCode">----</div>
+  </div>
+  <div class="hudBox"><span id="playerCount">1</span> in room</div>
+</div>
+<div id="controlsHint">WASD / arrow keys to move &nbsp;•&nbsp; drag mouse (or touch) to look around</div>
+<div id="disconnected">Connection lost.<br />The server may have restarted — refresh the page to rejoin.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+'use strict';
+
+// ============================================================
+// 1. BASIC SETUP — scene, camera, lights, renderer
+// ============================================================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d140e);
+scene.fog = new THREE.Fog(0x0d140e, 40, 90);
+
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 200);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// Lighting: soft sky light + one shadow-casting "moon"
+scene.add(new THREE.HemisphereLight(0xbdd3c1, 0x1a2419, 0.9));
+const moon = new THREE.DirectionalLight(0xfff3d6, 0.8);
+moon.position.set(18, 30, 12);
+moon.castShadow = true;
+moon.shadow.mapSize.set(2048, 2048);
+moon.shadow.camera.left = -30; moon.shadow.camera.right = 30;
+moon.shadow.camera.top = 30;   moon.shadow.camera.bottom = -30;
+scene.add(moon);
+
+// ============================================================
+// 2. THE ARENA — floor, walls, and props to hide behind later
+// ============================================================
+const ARENA = 40; // arena is ARENA x ARENA units, centered on 0,0
+
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(ARENA, ARENA),
+  new THREE.MeshStandardMaterial({ color: 0x2c3d31 })
+);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// A subtle grid so movement is easy to see
+const grid = new THREE.GridHelper(ARENA, 20, 0x40573f, 0x22331f);
+grid.position.y = 0.01;
+scene.add(grid);
+
+// Walls
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x1c2a20 });
+[
+  [0, -ARENA / 2, ARENA, 1],  // back    [x, z, width, depth]
+  [0, ARENA / 2, ARENA, 1],   // front
+  [-ARENA / 2, 0, 1, ARENA],  // left
+  [ARENA / 2, 0, 1, ARENA]    // right
+].forEach(([x, z, w, d]) => {
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 4, d), wallMat);
+  wall.position.set(x, 2, z);
+  wall.castShadow = wall.receiveShadow = true;
+  scene.add(wall);
+});
+
+// Props: crates and pillars (these become hiding spots in Milestone 3)
+const props = []; // remembered for collision
+function addBox(x, z, w, h, d, color) {
+  const m = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),
+    new THREE.MeshStandardMaterial({ color })
+  );
+  m.position.set(x, h / 2, z);
+  m.castShadow = m.receiveShadow = true;
+  scene.add(m);
+  props.push({ x, z, hw: w / 2, hd: d / 2 }); // half-width / half-depth
+}
+addBox(-10, -8, 3, 2.2, 3, 0x6b4f2f);
+addBox(-8.5, -5.5, 2, 1.6, 2, 0x7a5a36);
+addBox(9, -10, 4, 3, 2, 0x555f6b);
+addBox(12, 6, 2.5, 2.5, 2.5, 0x6b4f2f);
+addBox(-12, 10, 2, 4, 2, 0x4a5568);
+addBox(0, 12, 5, 1.4, 2, 0x5d6d5a);
+addBox(4, -3, 1.8, 2.8, 1.8, 0x4a5568);
+addBox(-4, 4, 1.8, 2.2, 1.8, 0x6b4f2f);
+
+// ============================================================
+// 3. PLAYER CHARACTERS — white body (Meccha homage) + color belt
+// ============================================================
+function makeCharacter(colorHex, name) {
+  const group = new THREE.Group();
+  const white = new THREE.MeshStandardMaterial({ color: 0xf1efe6 });
+  const tint = new THREE.MeshStandardMaterial({ color: new THREE.Color(colorHex) });
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 1.1, 16), white);
+  body.position.y = 0.85;
+  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.49, 0.28, 16), tint);
+  belt.position.y = 0.78;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 12), white);
+  head.position.y = 1.75;
+  // Two flat eyes so you can tell which way someone is facing
+  const eyeGeo = new THREE.SphereGeometry(0.055, 8, 8);
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x10160f });
+  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+  const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+  eyeL.position.set(-0.13, 1.82, 0.32);
+  eyeR.position.set(0.13, 1.82, 0.32);
+
+  [body, belt, head].forEach((m) => { m.castShadow = true; });
+  group.add(body, belt, head, eyeL, eyeR);
+  group.add(makeNameTag(name, colorHex));
+  return group;
+}
+
+// Floating name above each character, drawn onto a small canvas
+function makeNameTag(name, colorHex) {
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 64;
+  const ctx = cv.getContext('2d');
+  ctx.font = 'bold 34px Trebuchet MS, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(13,20,14,0.65)';
+  const w = ctx.measureText(name).width + 30;
+  ctx.fillRect(128 - w / 2, 8, w, 48);
+  ctx.fillStyle = colorHex;
+  ctx.fillText(name, 128, 34);
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false })
+  );
+  sprite.scale.set(2.6, 0.65, 1);
+  sprite.position.y = 2.5;
+  return sprite;
+}
+
+// ============================================================
+// 4. NETWORKING — talk to the server
+// ============================================================
+const socket = io();
+let me = null;                 // my player data from the server
+let myMesh = null;             // my 3D character
+const others = {};             // other players: id -> { mesh, target }
+
+const menu = document.getElementById('menu');
+const menuError = document.getElementById('menuError');
+const hud = document.getElementById('hud');
+const hint = document.getElementById('controlsHint');
+const createBtn = document.getElementById('createBtn');
+const joinBtn = document.getElementById('joinBtn');
+
+function setButtonsDisabled(v) { createBtn.disabled = joinBtn.disabled = v; }
+
+function enterGame(reply) {
+  if (reply.error) {
+    menuError.textContent = reply.error;
+    setButtonsDisabled(false);
+    return;
+  }
+  me = reply.you;
+  myMesh = makeCharacter(me.color, me.name + ' (you)');
+  myMesh.position.set(me.x, 0, me.z);
+  scene.add(myMesh);
+
+  // Add everyone already in the room
+  Object.values(reply.players).forEach((p) => {
+    if (p.id !== me.id) addOther(p);
+  });
+
+  document.getElementById('roomCode').textContent = reply.code;
+  updateCount();
+  menu.style.display = 'none';
+  hud.style.display = 'flex';
+  hint.style.display = 'block';
+}
+
+function addOther(p) {
+  const mesh = makeCharacter(p.color, p.name);
+  mesh.position.set(p.x, 0, p.z);
+  mesh.rotation.y = p.ry;
+  scene.add(mesh);
+  others[p.id] = { mesh, target: { x: p.x, z: p.z, ry: p.ry } };
+}
+
+function updateCount() {
+  document.getElementById('playerCount').textContent = 1 + Object.keys(others).length;
+}
+
+createBtn.addEventListener('click', () => {
+  menuError.textContent = '';
+  setButtonsDisabled(true);
+  socket.emit('createRoom', document.getElementById('playerName').value, enterGame);
+});
+
+joinBtn.addEventListener('click', () => {
+  const code = document.getElementById('joinCode').value.trim();
+  if (code.length !== 4) {
+    menuError.textContent = 'Room codes are 4 letters.';
+    return;
+  }
+  menuError.textContent = '';
+  setButtonsDisabled(true);
+  socket.emit('joinRoom', { code, name: document.getElementById('playerName').value }, enterGame);
+});
+
+socket.on('playerJoined', (p) => { addOther(p); updateCount(); });
+
+socket.on('playerMoved', (d) => {
+  const o = others[d.id];
+  if (o) o.target = { x: d.x, z: d.z, ry: d.ry };
+});
+
+socket.on('playerLeft', (id) => {
+  const o = others[id];
+  if (o) { scene.remove(o.mesh); delete others[id]; updateCount(); }
+});
+
+socket.on('disconnect', () => {
+  if (me) document.getElementById('disconnected').style.display = 'flex';
+});
+
+// ============================================================
+// 5. CONTROLS — WASD to move, drag to orbit the camera
+// ============================================================
+const keys = {};
+addEventListener('keydown', (e) => { keys[e.code] = true; });
+addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+let camYaw = 0;          // left/right angle around the player
+let camPitch = 0.45;     // up/down angle
+let dragging = false;
+let lastX = 0, lastY = 0;
+
+function dragStart(x, y) { dragging = true; lastX = x; lastY = y; }
+function dragMove(x, y) {
+  if (!dragging) return;
+  camYaw -= (x - lastX) * 0.005;
+  camPitch = Math.min(1.2, Math.max(0.1, camPitch + (y - lastY) * 0.004));
+  lastX = x; lastY = y;
+}
+renderer.domElement.addEventListener('mousedown', (e) => dragStart(e.clientX, e.clientY));
+addEventListener('mousemove', (e) => dragMove(e.clientX, e.clientY));
+addEventListener('mouseup', () => { dragging = false; });
+renderer.domElement.addEventListener('touchstart', (e) => {
+  if (e.touches.length) dragStart(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: true });
+addEventListener('touchmove', (e) => {
+  if (e.touches.length) dragMove(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: true });
+addEventListener('touchend', () => { dragging = false; });
+
+const SPEED = 5.5;       // movement speed, units per second
+const LIMIT = ARENA / 2 - 1.2; // stay inside the walls
+
+// Push the player out of props so you can't walk through crates
+function collide(pos) {
+  const R = 0.55; // player radius
+  for (const p of props) {
+    const dx = pos.x - p.x;
+    const dz = pos.z - p.z;
+    if (Math.abs(dx) < p.hw + R && Math.abs(dz) < p.hd + R) {
+      const overlapX = p.hw + R - Math.abs(dx);
+      const overlapZ = p.hd + R - Math.abs(dz);
+      if (overlapX < overlapZ) pos.x += (dx > 0 ? 1 : -1) * overlapX;
+      else pos.z += (dz > 0 ? 1 : -1) * overlapZ;
+    }
+  }
+  pos.x = Math.min(LIMIT, Math.max(-LIMIT, pos.x));
+  pos.z = Math.min(LIMIT, Math.max(-LIMIT, pos.z));
+}
+
+// ============================================================
+// 6. GAME LOOP — runs ~60 times per second
+// ============================================================
+const clock = new THREE.Clock();
+let sendTimer = 0;
+let lastSent = { x: NaN, z: NaN, ry: NaN };
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.1);
+
+  if (myMesh) {
+    // Which direction is the player pressing, relative to the camera?
+    let ix = 0, iz = 0;
+    if (keys['KeyW'] || keys['ArrowUp']) iz -= 1;
+    if (keys['KeyS'] || keys['ArrowDown']) iz += 1;
+    if (keys['KeyA'] || keys['ArrowLeft']) ix -= 1;
+    if (keys['KeyD'] || keys['ArrowRight']) ix += 1;
+
+    if (ix || iz) {
+      const len = Math.hypot(ix, iz);
+      const sin = Math.sin(camYaw), cos = Math.cos(camYaw);
+      const dx = (ix * cos - iz * sin) / len;
+      const dz = (ix * sin + iz * cos) / len;
+      myMesh.position.x += dx * SPEED * dt;
+      myMesh.position.z += dz * SPEED * dt;
+      collide(myMesh.position);
+      myMesh.rotation.y = Math.atan2(dx, dz); // face the way we walk
+    }
+
+    // Camera orbits and follows the player
+    const camDist = 7;
+    camera.position.set(
+      myMesh.position.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist,
+      1.6 + Math.sin(camPitch) * camDist,
+      myMesh.position.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist
+    );
+    camera.lookAt(myMesh.position.x, 1.4, myMesh.position.z);
+
+    // Tell the server where we are, 20 times/sec, only if we moved
+    sendTimer += dt;
+    if (sendTimer > 0.05) {
+      sendTimer = 0;
+      const { x, z } = myMesh.position;
+      const ry = myMesh.rotation.y;
+      if (x !== lastSent.x || z !== lastSent.z || ry !== lastSent.ry) {
+        socket.emit('move', { x, y: 0, z, ry });
+        lastSent = { x, z, ry };
+      }
+    }
+  }
+
+  // Smoothly glide other players toward their latest reported position
+  const glide = 1 - Math.pow(0.0005, dt);
+  Object.values(others).forEach((o) => {
+    o.mesh.position.x += (o.target.x - o.mesh.position.x) * glide;
+    o.mesh.position.z += (o.target.z - o.mesh.position.z) * glide;
+    let dr = o.target.ry - o.mesh.rotation.y;
+    while (dr > Math.PI) dr -= Math.PI * 2;
+    while (dr < -Math.PI) dr += Math.PI * 2;
+    o.mesh.rotation.y += dr * glide;
+  });
+
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
