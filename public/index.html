@@ -2,13 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
 <title>TURNCOAT</title>
 <style>
-  /* ---------- Look & feel ----------
-     Palette: night-jungle green + chalk white + paint-pot accents.
-     Signature: one letter of the title is painted the wrong color —
-     there's always one that doesn't belong. */
   :root {
     --bg: #0d140e;
     --panel: #16211a;
@@ -25,11 +21,11 @@
     background: var(--bg);
     color: var(--chalk);
     font-family: 'Trebuchet MS', 'Segoe UI', Verdana, sans-serif;
+    touch-action: none;
   }
   canvas { display: block; }
 
-  /* ---------- Menu overlay ---------- */
-  #menu {
+  .overlay {
     position: fixed; inset: 0;
     display: flex; align-items: center; justify-content: center;
     background:
@@ -39,146 +35,194 @@
     z-index: 20;
   }
   .card {
-    width: min(92vw, 420px);
+    width: min(92vw, 440px);
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 14px;
-    padding: 28px 26px 24px;
+    padding: 26px 24px 22px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   }
-  h1 {
-    font-size: 2.4rem;
-    letter-spacing: 0.14em;
-    text-align: center;
-    margin-bottom: 4px;
-    font-weight: 900;
-  }
-  h1 .odd { color: var(--paint-red); }   /* the letter that doesn't belong */
-  .tagline {
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.85rem;
-    margin-bottom: 22px;
-  }
+  h1 { font-size: 2.3rem; letter-spacing: 0.14em; text-align: center; font-weight: 900; }
+  h1 .odd { color: var(--paint-red); }
+  .tagline { text-align: center; color: var(--muted); font-size: 0.85rem; margin: 4px 0 20px; }
   label {
-    display: block;
-    font-size: 0.72rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin: 14px 0 6px;
+    display: block; font-size: 0.72rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted); margin: 14px 0 6px;
   }
   input {
-    width: 100%;
-    padding: 11px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    background: #0f1811;
-    color: var(--chalk);
-    font-size: 1rem;
+    width: 100%; padding: 11px 12px; border-radius: 8px;
+    border: 1px solid var(--line); background: #0f1811;
+    color: var(--chalk); font-size: 1rem;
   }
   input:focus { outline: 2px solid var(--paint-teal); border-color: transparent; }
   #joinCode { text-transform: uppercase; letter-spacing: 0.3em; font-weight: 700; }
   .row { display: flex; gap: 10px; margin-top: 18px; }
   button {
-    flex: 1;
-    padding: 12px 10px;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    font-weight: 700;
-    cursor: pointer;
-    color: #10160f;
+    flex: 1; padding: 12px 10px; border: none; border-radius: 8px;
+    font-size: 0.95rem; font-weight: 700; cursor: pointer; color: #10160f;
   }
   button:focus-visible { outline: 3px solid var(--chalk); }
-  #createBtn { background: var(--paint-yellow); }
-  #joinBtn   { background: var(--paint-teal); }
+  #createBtn, #startBtn { background: var(--paint-yellow); }
+  #joinBtn { background: var(--paint-teal); }
   button:hover { filter: brightness(1.1); }
-  button:disabled { opacity: 0.5; cursor: wait; }
-  #menuError {
-    margin-top: 14px;
-    min-height: 1.2em;
-    text-align: center;
-    color: var(--paint-red);
-    font-size: 0.88rem;
-  }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .err { margin-top: 14px; min-height: 1.2em; text-align: center; color: var(--paint-red); font-size: 0.88rem; }
 
-  /* ---------- In-game HUD ---------- */
+  /* Lobby */
+  #lobbyCode { text-align: center; font-size: 2rem; font-weight: 900; letter-spacing: 0.4em; margin: 8px 0 2px; }
+  .lobbyHint { text-align: center; color: var(--muted); font-size: 0.8rem; margin-bottom: 14px; }
+  #playerList { list-style: none; margin: 10px 0 6px; max-height: 200px; overflow-y: auto; }
+  #playerList li {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 0.95rem;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .hostTag { margin-left: auto; color: var(--paint-yellow); font-size: 0.72rem; letter-spacing: 0.1em; }
+  #waitMsg { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 14px; min-height: 1.2em; }
+
+  /* HUD */
   #hud {
     position: fixed; top: 0; left: 0; right: 0;
-    display: none;
-    justify-content: space-between;
-    padding: 12px 16px;
-    pointer-events: none;
-    z-index: 10;
-    font-size: 0.9rem;
+    display: none; justify-content: space-between; align-items: flex-start;
+    padding: 10px 14px; pointer-events: none; z-index: 10; gap: 8px;
   }
   .hudBox {
-    background: rgba(13, 20, 14, 0.75);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 8px 14px;
+    background: rgba(13,20,14,0.75); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 12px; font-size: 0.85rem;
   }
-  #roomCodeLabel { color: var(--muted); font-size: 0.7rem; letter-spacing: 0.12em; }
-  #roomCode { font-weight: 900; letter-spacing: 0.3em; font-size: 1.1rem; }
-  #playerCount { color: var(--paint-yellow); font-weight: 700; }
+  #roleBox { font-weight: 900; letter-spacing: 0.08em; }
+  #roleBox.seeker { color: var(--paint-red); border-color: var(--paint-red); }
+  #roleBox.hider { color: var(--paint-teal); border-color: var(--paint-teal); }
+  #timerBox { font-size: 1.25rem; font-weight: 900; min-width: 78px; text-align: center; }
+  #hidersLeftBox { color: var(--paint-yellow); font-weight: 700; }
+
+  /* Center phase banner */
+  #banner {
+    position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+    background: rgba(13,20,14,0.8); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 20px; font-size: 1rem; font-weight: 700;
+    z-index: 10; pointer-events: none; display: none; text-align: center; max-width: 90vw;
+  }
+
+  /* Toast feed (tag announcements) */
+  #feed {
+    position: fixed; right: 12px; top: 110px; z-index: 10; pointer-events: none;
+    display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+  }
+  .toast {
+    background: rgba(13,20,14,0.85); border-left: 3px solid var(--paint-red);
+    border-radius: 6px; padding: 7px 12px; font-size: 0.85rem;
+    animation: fadeout 4s forwards;
+  }
+  @keyframes fadeout { 0%,75% { opacity: 1; } 100% { opacity: 0; } }
+
+  /* Seeker's blindfold during the hide phase */
+  #blindfold {
+    position: fixed; inset: 0; background: #060906; z-index: 15;
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px; text-align: center; padding: 20px;
+  }
+  #blindfold .big { font-size: 1.5rem; font-weight: 900; color: var(--paint-red); letter-spacing: 0.08em; }
+  #blindfoldTimer { font-size: 3rem; font-weight: 900; }
+
+  /* Tag button (seeker only) */
+  #tagBtn {
+    position: fixed; right: 18px; bottom: 22px; z-index: 12;
+    width: 92px; height: 92px; border-radius: 50%;
+    background: var(--paint-red); color: #fff; font-size: 1.05rem; font-weight: 900;
+    letter-spacing: 0.06em; display: none; box-shadow: 0 6px 24px rgba(230,57,70,0.4);
+  }
+  #tagBtn.inRange { transform: scale(1.12); box-shadow: 0 0 34px rgba(230,57,70,0.9); }
+
+  /* Mobile joystick */
+  #stick {
+    position: fixed; z-index: 12; width: 110px; height: 110px; border-radius: 50%;
+    border: 2px solid rgba(241,239,230,0.35); display: none; pointer-events: none;
+  }
+  #stickKnob {
+    position: absolute; left: 50%; top: 50%; width: 46px; height: 46px;
+    border-radius: 50%; background: rgba(241,239,230,0.45); transform: translate(-50%,-50%);
+  }
+
   #controlsHint {
-    position: fixed; bottom: 12px; left: 50%;
-    transform: translateX(-50%);
-    color: var(--muted);
-    font-size: 0.78rem;
-    background: rgba(13, 20, 14, 0.65);
-    border-radius: 8px;
-    padding: 6px 14px;
-    pointer-events: none;
-    z-index: 10;
-    display: none;
-    text-align: center;
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    color: var(--muted); font-size: 0.75rem; background: rgba(13,20,14,0.65);
+    border-radius: 8px; padding: 6px 14px; pointer-events: none; z-index: 10;
+    display: none; text-align: center;
   }
+
+  /* Results screen */
+  #results {
+    position: fixed; inset: 0; z-index: 18; display: none;
+    align-items: center; justify-content: center; flex-direction: column; gap: 10px;
+    background: rgba(6,9,6,0.88); text-align: center; padding: 20px;
+  }
+  #resultsTitle { font-size: 2.4rem; font-weight: 900; letter-spacing: 0.1em; }
+  #resultsTitle.seeker { color: var(--paint-red); }
+  #resultsTitle.hiders { color: var(--paint-teal); }
+  #resultsDetail { color: var(--chalk); font-size: 1rem; line-height: 1.6; }
+  #resultsCountdown { color: var(--muted); font-size: 0.85rem; margin-top: 8px; }
+
   #disconnected {
-    position: fixed; inset: 0;
-    display: none;
-    align-items: center; justify-content: center;
-    background: rgba(13, 20, 14, 0.88);
-    z-index: 30;
-    text-align: center;
-    padding: 20px;
-    font-size: 1.05rem;
-    line-height: 1.6;
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(13,20,14,0.9); z-index: 40; text-align: center; padding: 20px;
+    font-size: 1.05rem; line-height: 1.6;
   }
 </style>
 </head>
 <body>
 
-<!-- ================= MENU ================= -->
-<div id="menu">
+<!-- ============ MENU ============ -->
+<div class="overlay" id="menu">
   <div class="card">
     <h1>TURNC<span class="odd">O</span>AT</h1>
-    <div class="tagline">one of you doesn't belong &mdash; milestone 1: the room</div>
-
+    <div class="tagline">milestone 2: hide &amp; seek</div>
     <label for="playerName">Your name</label>
     <input id="playerName" maxlength="12" placeholder="e.g. Alex" autocomplete="off" />
-
     <label for="joinCode">Room code (to join a friend)</label>
     <input id="joinCode" maxlength="4" placeholder="ABCD" autocomplete="off" />
-
     <div class="row">
       <button id="createBtn">Create room</button>
       <button id="joinBtn">Join room</button>
     </div>
-    <div id="menuError"></div>
+    <div class="err" id="menuError"></div>
   </div>
 </div>
 
-<!-- ================= HUD ================= -->
-<div id="hud">
-  <div class="hudBox">
-    <div id="roomCodeLabel">ROOM CODE — share with friends</div>
-    <div id="roomCode">----</div>
+<!-- ============ LOBBY ============ -->
+<div class="overlay" id="lobby" style="display:none">
+  <div class="card">
+    <div class="tagline" style="margin:0">ROOM CODE — share with friends</div>
+    <div id="lobbyCode">----</div>
+    <div class="lobbyHint">friends open this same website and tap Join</div>
+    <ul id="playerList"></ul>
+    <div class="row"><button id="startBtn">Start round</button></div>
+    <div id="waitMsg"></div>
   </div>
-  <div class="hudBox"><span id="playerCount">1</span> in room</div>
 </div>
-<div id="controlsHint">WASD / arrow keys to move &nbsp;•&nbsp; drag mouse (or touch) to look around</div>
+
+<!-- ============ IN-GAME UI ============ -->
+<div id="hud">
+  <div class="hudBox" id="roleBox">—</div>
+  <div class="hudBox" id="timerBox">--:--</div>
+  <div class="hudBox" id="hidersLeftBox">— hiding</div>
+</div>
+<div id="banner"></div>
+<div id="feed"></div>
+<div id="blindfold">
+  <div class="big">CLOSE YOUR EYES, SEEKER</div>
+  <div>The hiders are scattering…</div>
+  <div id="blindfoldTimer">20</div>
+</div>
+<button id="tagBtn">TAG</button>
+<div id="stick"><div id="stickKnob"></div></div>
+<div id="controlsHint">WASD to move • drag to look • phones: left thumb = move, right thumb = look</div>
+
+<div id="results">
+  <div id="resultsTitle"></div>
+  <div id="resultsDetail"></div>
+  <div id="resultsCountdown"></div>
+</div>
 <div id="disconnected">Connection lost.<br />The server may have restarted — refresh the page to rejoin.</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -187,14 +231,13 @@
 'use strict';
 
 // ============================================================
-// 1. BASIC SETUP — scene, camera, lights, renderer
+// 1. SCENE SETUP
 // ============================================================
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0d140e);
 scene.fog = new THREE.Fog(0x0d140e, 40, 90);
 
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 200);
-
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -207,7 +250,6 @@ addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
-// Lighting: soft sky light + one shadow-casting "moon"
 scene.add(new THREE.HemisphereLight(0xbdd3c1, 0x1a2419, 0.9));
 const moon = new THREE.DirectionalLight(0xfff3d6, 0.8);
 moon.position.set(18, 30, 12);
@@ -218,10 +260,9 @@ moon.shadow.camera.top = 30;   moon.shadow.camera.bottom = -30;
 scene.add(moon);
 
 // ============================================================
-// 2. THE ARENA — floor, walls, and props to hide behind later
+// 2. ARENA
 // ============================================================
-const ARENA = 40; // arena is ARENA x ARENA units, centered on 0,0
-
+const ARENA = 40;
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(ARENA, ARENA),
   new THREE.MeshStandardMaterial({ color: 0x2c3d31 })
@@ -229,19 +270,14 @@ const floor = new THREE.Mesh(
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
-
-// A subtle grid so movement is easy to see
 const grid = new THREE.GridHelper(ARENA, 20, 0x40573f, 0x22331f);
 grid.position.y = 0.01;
 scene.add(grid);
 
-// Walls
 const wallMat = new THREE.MeshStandardMaterial({ color: 0x1c2a20 });
 [
-  [0, -ARENA / 2, ARENA, 1],  // back    [x, z, width, depth]
-  [0, ARENA / 2, ARENA, 1],   // front
-  [-ARENA / 2, 0, 1, ARENA],  // left
-  [ARENA / 2, 0, 1, ARENA]    // right
+  [0, -ARENA / 2, ARENA, 1], [0, ARENA / 2, ARENA, 1],
+  [-ARENA / 2, 0, 1, ARENA], [ARENA / 2, 0, 1, ARENA]
 ].forEach(([x, z, w, d]) => {
   const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 4, d), wallMat);
   wall.position.set(x, 2, z);
@@ -249,17 +285,13 @@ const wallMat = new THREE.MeshStandardMaterial({ color: 0x1c2a20 });
   scene.add(wall);
 });
 
-// Props: crates and pillars (these become hiding spots in Milestone 3)
-const props = []; // remembered for collision
+const props = [];
 function addBox(x, z, w, h, d, color) {
-  const m = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshStandardMaterial({ color })
-  );
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color }));
   m.position.set(x, h / 2, z);
   m.castShadow = m.receiveShadow = true;
   scene.add(m);
-  props.push({ x, z, hw: w / 2, hd: d / 2 }); // half-width / half-depth
+  props.push({ x, z, hw: w / 2, hd: d / 2 });
 }
 addBox(-10, -8, 3, 2.2, 3, 0x6b4f2f);
 addBox(-8.5, -5.5, 2, 1.6, 2, 0x7a5a36);
@@ -271,12 +303,12 @@ addBox(4, -3, 1.8, 2.8, 1.8, 0x4a5568);
 addBox(-4, 4, 1.8, 2.2, 1.8, 0x6b4f2f);
 
 // ============================================================
-// 3. PLAYER CHARACTERS — white body (Meccha homage) + color belt
+// 3. CHARACTERS
 // ============================================================
-function makeCharacter(colorHex, name) {
+function makeCharacter(colorHex, name, isSeeker) {
   const group = new THREE.Group();
   const white = new THREE.MeshStandardMaterial({ color: 0xf1efe6 });
-  const tint = new THREE.MeshStandardMaterial({ color: new THREE.Color(colorHex) });
+  const tint = new THREE.MeshStandardMaterial({ color: new THREE.Color(isSeeker ? '#e63946' : colorHex) });
 
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 1.1, 16), white);
   body.position.y = 0.85;
@@ -284,21 +316,19 @@ function makeCharacter(colorHex, name) {
   belt.position.y = 0.78;
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 12), white);
   head.position.y = 1.75;
-  // Two flat eyes so you can tell which way someone is facing
   const eyeGeo = new THREE.SphereGeometry(0.055, 8, 8);
   const eyeMat = new THREE.MeshStandardMaterial({ color: 0x10160f });
   const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
   const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
   eyeL.position.set(-0.13, 1.82, 0.32);
   eyeR.position.set(0.13, 1.82, 0.32);
-
   [body, belt, head].forEach((m) => { m.castShadow = true; });
+
   group.add(body, belt, head, eyeL, eyeR);
-  group.add(makeNameTag(name, colorHex));
+  group.add(makeNameTag(isSeeker ? name + ' 👁' : name, isSeeker ? '#e63946' : colorHex));
   return group;
 }
 
-// Floating name above each character, drawn onto a small canvas
 function makeNameTag(name, colorHex) {
   const cv = document.createElement('canvas');
   cv.width = 256; cv.height = 64;
@@ -311,138 +341,359 @@ function makeNameTag(name, colorHex) {
   ctx.fillRect(128 - w / 2, 8, w, 48);
   ctx.fillStyle = colorHex;
   ctx.fillText(name, 128, 34);
-  const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false })
-  );
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false }));
   sprite.scale.set(2.6, 0.65, 1);
   sprite.position.y = 2.5;
   return sprite;
 }
 
+// Turn a character gray and see-through (they've been caught)
+function ghostify(group) {
+  group.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.material = obj.material.clone();
+      obj.material.transparent = true;
+      obj.material.opacity = 0.25;
+      obj.material.color.set(0x9a9a9a);
+    }
+    if (obj.isSprite) obj.material.opacity = 0.3;
+  });
+}
+
 // ============================================================
-// 4. NETWORKING — talk to the server
+// 4. GAME STATE + NETWORKING
 // ============================================================
 const socket = io();
-let me = null;                 // my player data from the server
-let myMesh = null;             // my 3D character
-const others = {};             // other players: id -> { mesh, target }
+let me = null;            // my server-side player data
+let myMesh = null;
+let myRole = null;        // 'seeker' | 'hider' | null
+let myAlive = true;
+let gamePhase = 'lobby';  // 'lobby' | 'hide' | 'seek' | 'over'
+let hostId = null;
+const others = {};        // id -> { mesh, target, data }
+let timerEndsAt = 0;      // when the current phase ends (client clock)
 
-const menu = document.getElementById('menu');
-const menuError = document.getElementById('menuError');
-const hud = document.getElementById('hud');
-const hint = document.getElementById('controlsHint');
-const createBtn = document.getElementById('createBtn');
-const joinBtn = document.getElementById('joinBtn');
+const $ = (id) => document.getElementById(id);
 
-function setButtonsDisabled(v) { createBtn.disabled = joinBtn.disabled = v; }
+function setDisplay(id, v) { $(id).style.display = v; }
 
-function enterGame(reply) {
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  $('feed').appendChild(el);
+  setTimeout(() => el.remove(), 4200);
+}
+
+// ---------- joining ----------
+function enterLobby(reply) {
   if (reply.error) {
-    menuError.textContent = reply.error;
-    setButtonsDisabled(false);
+    $('menuError').textContent = reply.error;
+    $('createBtn').disabled = $('joinBtn').disabled = false;
     return;
   }
   me = reply.you;
-  myMesh = makeCharacter(me.color, me.name + ' (you)');
+  hostId = reply.room.hostId;
+  myMesh = makeCharacter(me.color, me.name + ' (you)', false);
   myMesh.position.set(me.x, 0, me.z);
   scene.add(myMesh);
+  Object.values(reply.room.players).forEach((p) => { if (p.id !== me.id) addOther(p); });
 
-  // Add everyone already in the room
-  Object.values(reply.players).forEach((p) => {
-    if (p.id !== me.id) addOther(p);
-  });
-
-  document.getElementById('roomCode').textContent = reply.code;
-  updateCount();
-  menu.style.display = 'none';
-  hud.style.display = 'flex';
-  hint.style.display = 'block';
+  $('lobbyCode').textContent = reply.code;
+  setDisplay('menu', 'none');
+  setDisplay('lobby', 'flex');
+  renderLobby();
 }
 
 function addOther(p) {
-  const mesh = makeCharacter(p.color, p.name);
+  const mesh = makeCharacter(p.color, p.name, p.role === 'seeker');
   mesh.position.set(p.x, 0, p.z);
   mesh.rotation.y = p.ry;
+  if (!p.alive) ghostify(mesh);
   scene.add(mesh);
-  others[p.id] = { mesh, target: { x: p.x, z: p.z, ry: p.ry } };
+  others[p.id] = { mesh, target: { x: p.x, z: p.z, ry: p.ry }, data: p };
 }
 
-function updateCount() {
-  document.getElementById('playerCount').textContent = 1 + Object.keys(others).length;
-}
-
-createBtn.addEventListener('click', () => {
-  menuError.textContent = '';
-  setButtonsDisabled(true);
-  socket.emit('createRoom', document.getElementById('playerName').value, enterGame);
-});
-
-joinBtn.addEventListener('click', () => {
-  const code = document.getElementById('joinCode').value.trim();
-  if (code.length !== 4) {
-    menuError.textContent = 'Room codes are 4 letters.';
-    return;
-  }
-  menuError.textContent = '';
-  setButtonsDisabled(true);
-  socket.emit('joinRoom', { code, name: document.getElementById('playerName').value }, enterGame);
-});
-
-socket.on('playerJoined', (p) => { addOther(p); updateCount(); });
-
-socket.on('playerMoved', (d) => {
-  const o = others[d.id];
-  if (o) o.target = { x: d.x, z: d.z, ry: d.ry };
-});
-
-socket.on('playerLeft', (id) => {
+function removeOther(id) {
   const o = others[id];
-  if (o) { scene.remove(o.mesh); delete others[id]; updateCount(); }
+  if (o) { scene.remove(o.mesh); delete others[id]; }
+}
+
+function everyone() {
+  const list = Object.values(others).map((o) => o.data);
+  if (me) list.unshift(me);
+  return list;
+}
+
+function renderLobby() {
+  const ul = $('playerList');
+  ul.innerHTML = '';
+  everyone().forEach((p) => {
+    const li = document.createElement('li');
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = p.color;
+    li.appendChild(dot);
+    li.appendChild(document.createTextNode(p.name + (p.id === me.id ? ' (you)' : '')));
+    if (p.id === hostId) {
+      const tag = document.createElement('span');
+      tag.className = 'hostTag';
+      tag.textContent = 'HOST';
+      li.appendChild(tag);
+    }
+    ul.appendChild(li);
+  });
+
+  const iAmHost = me && me.id === hostId;
+  const enough = everyone().length >= 2;
+  $('startBtn').style.display = iAmHost ? 'block' : 'none';
+  $('startBtn').disabled = !enough;
+  $('waitMsg').textContent = iAmHost
+    ? (enough ? 'Everyone in? Hit start!' : 'Waiting for at least one more player…')
+    : 'Waiting for the host to start the round…';
+}
+
+$('createBtn').addEventListener('click', () => {
+  $('menuError').textContent = '';
+  $('createBtn').disabled = $('joinBtn').disabled = true;
+  socket.emit('createRoom', $('playerName').value, enterLobby);
+});
+$('joinBtn').addEventListener('click', () => {
+  const code = $('joinCode').value.trim();
+  if (code.length !== 4) { $('menuError').textContent = 'Room codes are 4 letters.'; return; }
+  $('menuError').textContent = '';
+  $('createBtn').disabled = $('joinBtn').disabled = true;
+  socket.emit('joinRoom', { code, name: $('playerName').value }, enterLobby);
+});
+$('startBtn').addEventListener('click', () => socket.emit('startGame'));
+
+// ---------- lobby events ----------
+socket.on('playerJoined', (p) => { addOther(p); renderLobby(); });
+socket.on('playerLeft', (id) => { removeOther(id); renderLobby(); updateHidersLeft(); });
+socket.on('hostIs', (id) => { hostId = id; renderLobby(); });
+
+// ---------- round start ----------
+socket.on('gameStarted', (data) => {
+  gamePhase = 'hide';
+  // Rebuild every character with fresh role info & spawn positions
+  Object.keys(others).forEach(removeOther);
+  Object.values(data.players).forEach((p) => {
+    if (p.id === me.id) {
+      me = p;
+      scene.remove(myMesh);
+      myMesh = makeCharacter(p.color, p.name + ' (you)', p.role === 'seeker');
+      myMesh.position.set(p.x, 0, p.z);
+      scene.add(myMesh);
+    } else {
+      addOther(p);
+    }
+  });
+
+  myRole = me.role;
+  myAlive = true;
+  timerEndsAt = Date.now() + data.hideSeconds * 1000;
+
+  setDisplay('lobby', 'none');
+  setDisplay('results', 'none');
+  setDisplay('hud', 'flex');
+  setDisplay('controlsHint', 'block');
+  $('feed').innerHTML = '';
+
+  const roleBox = $('roleBox');
+  if (myRole === 'seeker') {
+    roleBox.textContent = '👁 SEEKER';
+    roleBox.className = 'hudBox seeker';
+    setDisplay('blindfold', 'flex');
+    $('banner').style.display = 'none';
+  } else {
+    roleBox.textContent = '🫥 HIDER';
+    roleBox.className = 'hudBox hider';
+    $('banner').textContent = 'HIDE! The seeker opens their eyes soon…';
+    $('banner').style.display = 'block';
+  }
+  updateHidersLeft();
+});
+
+// ---------- hide -> seek ----------
+socket.on('phaseChanged', (data) => {
+  if (data.phase !== 'seek') return;
+  gamePhase = 'seek';
+  timerEndsAt = Date.now() + data.seconds * 1000;
+  setDisplay('blindfold', 'none');
+  if (myRole === 'seeker') {
+    $('banner').textContent = 'GO! Find them all before time runs out.';
+    setDisplay('tagBtn', 'block');
+  } else {
+    $('banner').textContent = 'The seeker is loose. Stay hidden!';
+  }
+  $('banner').style.display = 'block';
+  setTimeout(() => { $('banner').style.display = 'none'; }, 3500);
+});
+
+// ---------- someone got caught ----------
+socket.on('playerTagged', (data) => {
+  toast(`${data.name} was caught!`);
+  if (data.id === me.id) {
+    myAlive = false;
+    me.alive = false;
+    ghostify(myMesh);
+    $('banner').textContent = 'You were caught! Spectating…';
+    $('banner').style.display = 'block';
+  } else if (others[data.id]) {
+    others[data.id].data.alive = false;
+    ghostify(others[data.id].mesh);
+  }
+  updateHidersLeft();
+});
+
+function updateHidersLeft() {
+  const count = everyone().filter((p) => p.role === 'hider' && p.alive).length;
+  $('hidersLeftBox').textContent = `${count} hiding`;
+}
+
+// ---------- round over ----------
+socket.on('gameOver', (data) => {
+  gamePhase = 'over';
+  setDisplay('tagBtn', 'none');
+  setDisplay('blindfold', 'none');
+  $('banner').style.display = 'none';
+
+  const title = $('resultsTitle');
+  if (data.winner === 'seeker') {
+    title.textContent = 'SEEKER WINS';
+    title.className = 'seeker';
+    $('resultsDetail').textContent = `${data.seekerName} found everyone.`;
+  } else {
+    title.textContent = 'HIDERS WIN';
+    title.className = 'hiders';
+    $('resultsDetail').textContent = data.survivors.length
+      ? `Survived: ${data.survivors.join(', ')}`
+      : `The seeker gave up — hiders take it.`;
+  }
+  setDisplay('results', 'flex');
+
+  let secs = 7;
+  $('resultsCountdown').textContent = `Back to lobby in ${secs}…`;
+  const iv = setInterval(() => {
+    secs--;
+    if (secs <= 0) { clearInterval(iv); return; }
+    $('resultsCountdown').textContent = `Back to lobby in ${secs}…`;
+  }, 1000);
+});
+
+// ---------- back to lobby ----------
+socket.on('backToLobby', (snapshot) => {
+  gamePhase = 'lobby';
+  myRole = null;
+  myAlive = true;
+  hostId = snapshot.hostId;
+
+  Object.keys(others).forEach(removeOther);
+  Object.values(snapshot.players).forEach((p) => {
+    if (p.id === me.id) {
+      me = p;
+      scene.remove(myMesh);
+      myMesh = makeCharacter(p.color, p.name + ' (you)', false);
+      myMesh.position.set(p.x, 0, p.z);
+      scene.add(myMesh);
+    } else {
+      addOther(p);
+    }
+  });
+
+  setDisplay('results', 'none');
+  setDisplay('hud', 'none');
+  setDisplay('tagBtn', 'none');
+  setDisplay('controlsHint', 'none');
+  setDisplay('lobby', 'flex');
+  renderLobby();
 });
 
 socket.on('disconnect', () => {
-  if (me) document.getElementById('disconnected').style.display = 'flex';
+  if (me) setDisplay('disconnected', 'flex');
 });
 
 // ============================================================
-// 5. CONTROLS — WASD to move, drag to orbit the camera
+// 5. CONTROLS — keyboard, mouse, and touch (joystick + look)
 // ============================================================
 const keys = {};
-addEventListener('keydown', (e) => { keys[e.code] = true; });
+addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  if (e.code === 'Space' && myRole === 'seeker' && gamePhase === 'seek') {
+    e.preventDefault();
+    socket.emit('tryTag');
+  }
+});
 addEventListener('keyup', (e) => { keys[e.code] = false; });
+$('tagBtn').addEventListener('click', () => socket.emit('tryTag'));
 
-let camYaw = 0;          // left/right angle around the player
-let camPitch = 0.45;     // up/down angle
-let dragging = false;
-let lastX = 0, lastY = 0;
+let camYaw = 0, camPitch = 0.45;
+let mouseDown = false, lastX = 0, lastY = 0;
+renderer.domElement.addEventListener('mousedown', (e) => { mouseDown = true; lastX = e.clientX; lastY = e.clientY; });
+addEventListener('mousemove', (e) => {
+  if (!mouseDown) return;
+  camYaw -= (e.clientX - lastX) * 0.005;
+  camPitch = Math.min(1.2, Math.max(0.1, camPitch + (e.clientY - lastY) * 0.004));
+  lastX = e.clientX; lastY = e.clientY;
+});
+addEventListener('mouseup', () => { mouseDown = false; });
 
-function dragStart(x, y) { dragging = true; lastX = x; lastY = y; }
-function dragMove(x, y) {
-  if (!dragging) return;
-  camYaw -= (x - lastX) * 0.005;
-  camPitch = Math.min(1.2, Math.max(0.1, camPitch + (y - lastY) * 0.004));
-  lastX = x; lastY = y;
-}
-renderer.domElement.addEventListener('mousedown', (e) => dragStart(e.clientX, e.clientY));
-addEventListener('mousemove', (e) => dragMove(e.clientX, e.clientY));
-addEventListener('mouseup', () => { dragging = false; });
+// Touch: left half of the screen is a movement joystick, right half looks around
+const joy = { active: false, id: null, ox: 0, oy: 0, dx: 0, dy: 0 };
+const look = { active: false, id: null, lx: 0, ly: 0 };
+
 renderer.domElement.addEventListener('touchstart', (e) => {
-  if (e.touches.length) dragStart(e.touches[0].clientX, e.touches[0].clientY);
+  for (const t of e.changedTouches) {
+    if (t.clientX < innerWidth * 0.45 && !joy.active) {
+      joy.active = true; joy.id = t.identifier;
+      joy.ox = t.clientX; joy.oy = t.clientY; joy.dx = joy.dy = 0;
+      const s = $('stick');
+      s.style.left = (t.clientX - 55) + 'px';
+      s.style.top = (t.clientY - 55) + 'px';
+      s.style.display = 'block';
+    } else if (!look.active) {
+      look.active = true; look.id = t.identifier;
+      look.lx = t.clientX; look.ly = t.clientY;
+    }
+  }
 }, { passive: true });
-addEventListener('touchmove', (e) => {
-  if (e.touches.length) dragMove(e.touches[0].clientX, e.touches[0].clientY);
+
+renderer.domElement.addEventListener('touchmove', (e) => {
+  for (const t of e.changedTouches) {
+    if (joy.active && t.identifier === joy.id) {
+      const MAX = 45;
+      joy.dx = Math.max(-MAX, Math.min(MAX, t.clientX - joy.ox)) / MAX;
+      joy.dy = Math.max(-MAX, Math.min(MAX, t.clientY - joy.oy)) / MAX;
+      $('stickKnob').style.transform =
+        `translate(calc(-50% + ${joy.dx * 32}px), calc(-50% + ${joy.dy * 32}px))`;
+    } else if (look.active && t.identifier === look.id) {
+      camYaw -= (t.clientX - look.lx) * 0.006;
+      camPitch = Math.min(1.2, Math.max(0.1, camPitch + (t.clientY - look.ly) * 0.005));
+      look.lx = t.clientX; look.ly = t.clientY;
+    }
+  }
 }, { passive: true });
-addEventListener('touchend', () => { dragging = false; });
 
-const SPEED = 5.5;       // movement speed, units per second
-const LIMIT = ARENA / 2 - 1.2; // stay inside the walls
+function endTouch(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joy.id) {
+      joy.active = false; joy.id = null; joy.dx = joy.dy = 0;
+      $('stick').style.display = 'none';
+      $('stickKnob').style.transform = 'translate(-50%,-50%)';
+    }
+    if (t.identifier === look.id) { look.active = false; look.id = null; }
+  }
+}
+renderer.domElement.addEventListener('touchend', endTouch, { passive: true });
+renderer.domElement.addEventListener('touchcancel', endTouch, { passive: true });
 
-// Push the player out of props so you can't walk through crates
+const SPEED = 5.5;
+const LIMIT = ARENA / 2 - 1.2;
+
 function collide(pos) {
-  const R = 0.55; // player radius
+  const R = 0.55;
   for (const p of props) {
-    const dx = pos.x - p.x;
-    const dz = pos.z - p.z;
+    const dx = pos.x - p.x, dz = pos.z - p.z;
     if (Math.abs(dx) < p.hw + R && Math.abs(dz) < p.hd + R) {
       const overlapX = p.hw + R - Math.abs(dx);
       const overlapZ = p.hd + R - Math.abs(dz);
@@ -454,46 +705,82 @@ function collide(pos) {
   pos.z = Math.min(LIMIT, Math.max(-LIMIT, pos.z));
 }
 
+// Am I allowed to move right now?
+function canMove() {
+  if (!myMesh || !myAlive) return false;
+  if (gamePhase === 'hide' && myRole === 'seeker') return false; // blindfolded
+  if (gamePhase === 'over' || gamePhase === 'lobby') return gamePhase === 'lobby';
+  return true;
+}
+
 // ============================================================
-// 6. GAME LOOP — runs ~60 times per second
+// 6. GAME LOOP
 // ============================================================
 const clock = new THREE.Clock();
 let sendTimer = 0;
 let lastSent = { x: NaN, z: NaN, ry: NaN };
 
+function formatTime(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.1);
 
+  // Countdown displays
+  if (gamePhase === 'hide' || gamePhase === 'seek') {
+    const remaining = timerEndsAt - Date.now();
+    $('timerBox').textContent = formatTime(remaining);
+    if (gamePhase === 'hide') $('blindfoldTimer').textContent = Math.max(0, Math.ceil(remaining / 1000));
+  }
+
   if (myMesh) {
-    // Which direction is the player pressing, relative to the camera?
+    // Input: keyboard OR joystick
     let ix = 0, iz = 0;
     if (keys['KeyW'] || keys['ArrowUp']) iz -= 1;
     if (keys['KeyS'] || keys['ArrowDown']) iz += 1;
     if (keys['KeyA'] || keys['ArrowLeft']) ix -= 1;
     if (keys['KeyD'] || keys['ArrowRight']) ix += 1;
+    if (joy.active) { ix = joy.dx; iz = joy.dy; }
 
-    if (ix || iz) {
-      const len = Math.hypot(ix, iz);
+    if ((ix || iz) && canMove()) {
+      const len = Math.max(1, Math.hypot(ix, iz));
       const sin = Math.sin(camYaw), cos = Math.cos(camYaw);
-      const dx = (ix * cos - iz * sin) / len;
-      const dz = (ix * sin + iz * cos) / len;
+      const dx = (ix * cos + iz * sin) / len;
+      const dz = (-ix * sin + iz * cos) / len;
       myMesh.position.x += dx * SPEED * dt;
       myMesh.position.z += dz * SPEED * dt;
       collide(myMesh.position);
-      myMesh.rotation.y = Math.atan2(dx, dz); // face the way we walk
+      myMesh.rotation.y = Math.atan2(dx, dz);
     }
 
-    // Camera orbits and follows the player
-    const camDist = 7;
-    camera.position.set(
-      myMesh.position.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist,
-      1.6 + Math.sin(camPitch) * camDist,
-      myMesh.position.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist
-    );
-    camera.lookAt(myMesh.position.x, 1.4, myMesh.position.z);
+    // Camera: the seeker plays in FIRST PERSON during a round
+    // (limited vision = hiding actually works); everyone else is third person.
+    const firstPerson = myRole === 'seeker' && (gamePhase === 'hide' || gamePhase === 'seek');
+    myMesh.visible = !firstPerson; // don't show your own body from inside it
+    if (firstPerson) {
+      myMesh.rotation.y = camYaw + Math.PI; // others see you facing where you look
+      const pitchFP = camPitch - 0.45;      // re-center so the default view is level
+      const eyeHeight = 1.7;
+      camera.position.set(myMesh.position.x, eyeHeight, myMesh.position.z);
+      camera.lookAt(
+        myMesh.position.x - Math.sin(camYaw) * Math.cos(pitchFP),
+        eyeHeight - Math.sin(pitchFP),
+        myMesh.position.z - Math.cos(camYaw) * Math.cos(pitchFP)
+      );
+    } else {
+      const camDist = 7;
+      camera.position.set(
+        myMesh.position.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist,
+        1.6 + Math.sin(camPitch) * camDist,
+        myMesh.position.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist
+      );
+      camera.lookAt(myMesh.position.x, 1.4, myMesh.position.z);
+    }
 
-    // Tell the server where we are, 20 times/sec, only if we moved
+    // Report position to server
     sendTimer += dt;
     if (sendTimer > 0.05) {
       sendTimer = 0;
@@ -504,9 +791,20 @@ function animate() {
         lastSent = { x, z, ry };
       }
     }
+
+    // Seeker: glow the TAG button when a hider is in range
+    if (myRole === 'seeker' && gamePhase === 'seek') {
+      let inRange = false;
+      Object.values(others).forEach((o) => {
+        if (o.data.role !== 'hider' || !o.data.alive) return;
+        const d = Math.hypot(o.mesh.position.x - myMesh.position.x, o.mesh.position.z - myMesh.position.z);
+        if (d < 2.4) inRange = true;
+      });
+      $('tagBtn').classList.toggle('inRange', inRange);
+    }
   }
 
-  // Smoothly glide other players toward their latest reported position
+  // Smooth remote players
   const glide = 1 - Math.pow(0.0005, dt);
   Object.values(others).forEach((o) => {
     o.mesh.position.x += (o.target.x - o.mesh.position.x) * glide;
@@ -519,6 +817,12 @@ function animate() {
 
   renderer.render(scene, camera);
 }
+
+socket.on('playerMoved', (d) => {
+  const o = others[d.id];
+  if (o) o.target = { x: d.x, z: d.z, ry: d.ry };
+});
+
 animate();
 </script>
 </body>
