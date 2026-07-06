@@ -68,7 +68,6 @@
   button:disabled { opacity: 0.45; cursor: not-allowed; }
   .err { margin-top: 14px; min-height: 1.2em; text-align: center; color: var(--paint-red); font-size: 0.88rem; }
 
-  /* Lobby */
   #lobbyCode { text-align: center; font-size: 2rem; font-weight: 900; letter-spacing: 0.4em; margin: 8px 0 2px; }
   .lobbyHint { text-align: center; color: var(--muted); font-size: 0.8rem; margin-bottom: 14px; }
   #playerList { list-style: none; margin: 10px 0 6px; max-height: 200px; overflow-y: auto; }
@@ -80,7 +79,6 @@
   .hostTag { margin-left: auto; color: var(--paint-yellow); font-size: 0.72rem; letter-spacing: 0.1em; }
   #waitMsg { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 14px; min-height: 1.2em; }
 
-  /* HUD */
   #hud {
     position: fixed; top: 0; left: 0; right: 0;
     display: none; justify-content: space-between; align-items: flex-start;
@@ -96,7 +94,6 @@
   #timerBox { font-size: 1.25rem; font-weight: 900; min-width: 78px; text-align: center; }
   #hidersLeftBox { color: var(--paint-yellow); font-weight: 700; }
 
-  /* Center phase banner */
   #banner {
     position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
     background: rgba(13,20,14,0.8); border: 1px solid var(--line);
@@ -104,7 +101,6 @@
     z-index: 10; pointer-events: none; display: none; text-align: center; max-width: 90vw;
   }
 
-  /* Toast feed (tag announcements) */
   #feed {
     position: fixed; right: 12px; top: 110px; z-index: 10; pointer-events: none;
     display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
@@ -116,7 +112,6 @@
   }
   @keyframes fadeout { 0%,75% { opacity: 1; } 100% { opacity: 0; } }
 
-  /* Seeker's blindfold during the hide phase */
   #blindfold {
     position: fixed; inset: 0; background: #060906; z-index: 15;
     display: none; align-items: center; justify-content: center;
@@ -125,7 +120,15 @@
   #blindfold .big { font-size: 1.5rem; font-weight: 900; color: var(--paint-red); letter-spacing: 0.08em; }
   #blindfoldTimer { font-size: 3rem; font-weight: 900; }
 
-  /* Tag button (seeker only) */
+  /* Whiff stun flash for the seeker */
+  #stunFlash {
+    position: fixed; inset: 0; z-index: 14; display: none;
+    align-items: center; justify-content: center; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(230,57,70,0.35));
+    font-size: 1.4rem; font-weight: 900; color: var(--paint-red);
+    text-shadow: 0 2px 10px #000; text-align: center;
+  }
+
   #tagBtn {
     position: fixed; right: 18px; bottom: 22px; z-index: 12;
     width: 92px; height: 92px; border-radius: 50%;
@@ -134,7 +137,33 @@
   }
   #tagBtn.inRange { transform: scale(1.12); box-shadow: 0 0 34px rgba(230,57,70,0.9); }
 
-  /* Mobile joystick */
+  /* Disguise button + panel (hiders only) */
+  #disguiseBtn {
+    position: fixed; right: 18px; bottom: 22px; z-index: 12;
+    width: 92px; height: 92px; border-radius: 50%;
+    background: var(--paint-teal); color: #06120e; font-size: 0.9rem; font-weight: 900;
+    display: none; box-shadow: 0 6px 24px rgba(42,157,143,0.4);
+  }
+  #disguisePanel {
+    position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
+    width: min(96vw, 460px); z-index: 13; display: none;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px 14px 0 0; padding: 14px 16px 18px;
+  }
+  .panelTitle { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 8px 0 8px; }
+  .shapeRow { display: flex; gap: 8px; }
+  .shapeBtn {
+    flex: 1; padding: 10px 4px; border-radius: 10px; border: 2px solid var(--line);
+    background: #0f1811; color: var(--chalk); font-size: 0.85rem; font-weight: 700; cursor: pointer;
+  }
+  .shapeBtn.sel { border-color: var(--paint-teal); background: #12241d; }
+  .swatchGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .swatch {
+    height: 40px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.12); cursor: pointer; padding: 0;
+  }
+  .swatch.sel { border-color: var(--chalk); box-shadow: 0 0 0 2px var(--paint-teal); }
+  #closePanel { margin-top: 14px; background: var(--line); color: var(--chalk); }
+
   #stick {
     position: fixed; z-index: 12; width: 110px; height: 110px; border-radius: 50%;
     border: 2px solid rgba(241,239,230,0.35); display: none; pointer-events: none;
@@ -151,7 +180,6 @@
     display: none; text-align: center;
   }
 
-  /* Results screen */
   #results {
     position: fixed; inset: 0; z-index: 18; display: none;
     align-items: center; justify-content: center; flex-direction: column; gap: 10px;
@@ -176,7 +204,7 @@
 <div class="overlay" id="menu">
   <div class="card">
     <h1>TURNC<span class="odd">O</span>AT</h1>
-    <div class="tagline">milestone 2: hide &amp; seek</div>
+    <div class="tagline">milestone 3: the disguise</div>
     <label for="playerName">Your name</label>
     <input id="playerName" maxlength="12" placeholder="e.g. Alex" autocomplete="off" />
     <label for="joinCode">Room code (to join a friend)</label>
@@ -211,10 +239,26 @@
 <div id="feed"></div>
 <div id="blindfold">
   <div class="big">CLOSE YOUR EYES, SEEKER</div>
-  <div>The hiders are scattering…</div>
-  <div id="blindfoldTimer">20</div>
+  <div>The hiders are disguising themselves…</div>
+  <div id="blindfoldTimer">30</div>
 </div>
+<div id="stunFlash">YOU GRABBED A REAL PROP<br />STUNNED!</div>
 <button id="tagBtn">TAG</button>
+<button id="disguiseBtn">🎭<br />DISGUISE</button>
+
+<div id="disguisePanel">
+  <div class="panelTitle">Become…</div>
+  <div class="shapeRow">
+    <button class="shapeBtn" data-shape="char">🧍 You</button>
+    <button class="shapeBtn" data-shape="crate">📦 Crate</button>
+    <button class="shapeBtn" data-shape="rock">🪨 Rock</button>
+    <button class="shapeBtn" data-shape="pillar">🗿 Pillar</button>
+  </div>
+  <div class="panelTitle">Paint job</div>
+  <div class="swatchGrid" id="swatches"></div>
+  <div class="row"><button id="closePanel">Done — go hide!</button></div>
+</div>
+
 <div id="stick"><div id="stickKnob"></div></div>
 <div id="controlsHint">WASD to move • drag to look • phones: left thumb = move, right thumb = look</div>
 
@@ -285,6 +329,7 @@ const wallMat = new THREE.MeshStandardMaterial({ color: 0x1c2a20 });
   scene.add(wall);
 });
 
+// Real props. Hiders will imitate these — more props = more doubt.
 const props = [];
 function addBox(x, z, w, h, d, color) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color }));
@@ -292,6 +337,20 @@ function addBox(x, z, w, h, d, color) {
   m.castShadow = m.receiveShadow = true;
   scene.add(m);
   props.push({ x, z, hw: w / 2, hd: d / 2 });
+}
+function addRock(x, z, r, color) {
+  const m = new THREE.Mesh(new THREE.DodecahedronGeometry(r), new THREE.MeshStandardMaterial({ color, flatShading: true }));
+  m.position.set(x, r * 0.8, z);
+  m.castShadow = m.receiveShadow = true;
+  scene.add(m);
+  props.push({ x, z, hw: r, hd: r });
+}
+function addPillar(x, z, color) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 2.2, 12), new THREE.MeshStandardMaterial({ color }));
+  m.position.set(x, 1.1, z);
+  m.castShadow = m.receiveShadow = true;
+  scene.add(m);
+  props.push({ x, z, hw: 0.65, hd: 0.65 });
 }
 addBox(-10, -8, 3, 2.2, 3, 0x6b4f2f);
 addBox(-8.5, -5.5, 2, 1.6, 2, 0x7a5a36);
@@ -301,31 +360,92 @@ addBox(-12, 10, 2, 4, 2, 0x4a5568);
 addBox(0, 12, 5, 1.4, 2, 0x5d6d5a);
 addBox(4, -3, 1.8, 2.8, 1.8, 0x4a5568);
 addBox(-4, 4, 1.8, 2.2, 1.8, 0x6b4f2f);
+// Scatter decoys matching the shapes hiders can become
+addRock(-14, -13, 0.9, 0x4a5568);
+addRock(7, 14, 0.8, 0x555f6b);
+addRock(-2, -14, 1.0, 0x4a5568);
+addRock(15, -2, 0.85, 0x5d6d5a);
+addPillar(-15, 2, 0x555f6b);
+addPillar(14, 13, 0x6b4f2f);
+addPillar(2, 6, 0x4a5568);
+// Loose crates matching the "crate" morph size
+addBox(-6, -12, 1.4, 1.4, 1.4, 0x6b4f2f);
+addBox(11, 0, 1.4, 1.4, 1.4, 0x7a5a36);
+addBox(-14, -3, 1.4, 1.4, 1.4, 0x6b4f2f);
 
 // ============================================================
-// 3. CHARACTERS
+// 3. CHARACTERS & DISGUISES
 // ============================================================
-function makeCharacter(colorHex, name, isSeeker) {
-  const group = new THREE.Group();
-  const white = new THREE.MeshStandardMaterial({ color: 0xf1efe6 });
-  const tint = new THREE.MeshStandardMaterial({ color: new THREE.Color(isSeeker ? '#e63946' : colorHex) });
+// The paint palette — sampled from the arena itself (+ two troll options)
+const SWATCH_COLORS = [
+  '#2c3d31', '#1c2a20', '#22331f', '#5d6d5a', '#40573f',
+  '#6b4f2f', '#7a5a36', '#4a5568', '#555f6b', '#ff4fa3'
+];
 
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 1.1, 16), white);
-  body.position.y = 0.85;
-  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.49, 0.28, 16), tint);
-  belt.position.y = 0.78;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 12), white);
-  head.position.y = 1.75;
-  const eyeGeo = new THREE.SphereGeometry(0.055, 8, 8);
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x10160f });
-  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-  const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
-  eyeL.position.set(-0.13, 1.82, 0.32);
-  eyeR.position.set(0.13, 1.82, 0.32);
-  [body, belt, head].forEach((m) => { m.castShadow = true; });
+function buildSkinMesh(p) {
+  const skinColor = (p.skin && p.skin.color) || p.color;
+  const shape = (p.skin && p.skin.shape) || 'char';
+  let group;
 
-  group.add(body, belt, head, eyeL, eyeR);
-  group.add(makeNameTag(isSeeker ? name + ' 👁' : name, isSeeker ? '#e63946' : colorHex));
+  if (shape === 'crate') {
+    group = new THREE.Group();
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(1.4, 1.4, 1.4),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(skinColor) })
+    );
+    m.position.y = 0.7;
+    m.castShadow = m.receiveShadow = true;
+    group.add(m);
+  } else if (shape === 'rock') {
+    group = new THREE.Group();
+    const m = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(0.9),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(skinColor), flatShading: true })
+    );
+    m.position.y = 0.72;
+    m.castShadow = m.receiveShadow = true;
+    group.add(m);
+  } else if (shape === 'pillar') {
+    group = new THREE.Group();
+    const m = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.55, 0.65, 2.2, 12),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(skinColor) })
+    );
+    m.position.y = 1.1;
+    m.castShadow = m.receiveShadow = true;
+    group.add(m);
+  } else {
+    // The character. Painted color covers the whole body when chosen.
+    group = new THREE.Group();
+    const isSeeker = p.role === 'seeker';
+    const bodyColor = p.skin && p.skin.color ? new THREE.Color(p.skin.color) : new THREE.Color(0xf1efe6);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor });
+    const beltMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(isSeeker ? '#e63946' : p.color) });
+
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 1.1, 16), bodyMat);
+    body.position.y = 0.85;
+    const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.49, 0.28, 16), beltMat);
+    belt.position.y = 0.78;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 12), bodyMat);
+    head.position.y = 1.75;
+    const eyeGeo = new THREE.SphereGeometry(0.055, 8, 8);
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x10160f });
+    const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+    const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeL.position.set(-0.13, 1.82, 0.32);
+    eyeR.position.set(0.13, 1.82, 0.32);
+    [body, belt, head].forEach((m) => { m.castShadow = true; });
+    group.add(body, belt, head, eyeL, eyeR);
+  }
+
+  // Floating name tag (visibility handled by updateNameTags)
+  const isSeeker = p.role === 'seeker';
+  const tag = makeNameTag(
+    isSeeker ? p.name + ' 👁' : p.name,
+    isSeeker ? '#e63946' : p.color
+  );
+  group.add(tag);
+  group.userData.tag = tag;
   return group;
 }
 
@@ -347,7 +467,6 @@ function makeNameTag(name, colorHex) {
   return sprite;
 }
 
-// Turn a character gray and see-through (they've been caught)
 function ghostify(group) {
   group.traverse((obj) => {
     if (obj.isMesh) {
@@ -356,7 +475,22 @@ function ghostify(group) {
       obj.material.opacity = 0.25;
       obj.material.color.set(0x9a9a9a);
     }
-    if (obj.isSprite) obj.material.opacity = 0.3;
+  });
+}
+
+// Name tags float during lobby/results, but are hidden mid-round
+// (a floating name over a "crate" would give the whole game away).
+// Caught players get their tag back so spectators can mourn them.
+function tagVisible(p) {
+  if (gamePhase === 'lobby' || gamePhase === 'over') return true;
+  if (p.role === 'hider' && !p.alive) return true;
+  return false;
+}
+
+function updateNameTags() {
+  if (me && myMesh && myMesh.userData.tag) myMesh.userData.tag.visible = tagVisible(me);
+  Object.values(others).forEach((o) => {
+    if (o.mesh.userData.tag) o.mesh.userData.tag.visible = tagVisible(o.data);
   });
 }
 
@@ -364,17 +498,18 @@ function ghostify(group) {
 // 4. GAME STATE + NETWORKING
 // ============================================================
 const socket = io();
-let me = null;            // my server-side player data
+let me = null;
 let myMesh = null;
-let myRole = null;        // 'seeker' | 'hider' | null
+let myRole = null;
 let myAlive = true;
-let gamePhase = 'lobby';  // 'lobby' | 'hide' | 'seek' | 'over'
+let gamePhase = 'lobby';
 let hostId = null;
-const others = {};        // id -> { mesh, target, data }
-let timerEndsAt = 0;      // when the current phase ends (client clock)
+let stunnedUntil = 0;
+const others = {};
+let timerEndsAt = 0;
+let mySkin = { shape: 'char', color: null };
 
 const $ = (id) => document.getElementById(id);
-
 function setDisplay(id, v) { $(id).style.display = v; }
 
 function toast(msg) {
@@ -383,6 +518,25 @@ function toast(msg) {
   el.textContent = msg;
   $('feed').appendChild(el);
   setTimeout(() => el.remove(), 4200);
+}
+
+// Rebuild a player's 3D body from their current data (skin, role, alive)
+function rebuildMesh(p, isMe) {
+  const oldMesh = isMe ? myMesh : (others[p.id] && others[p.id].mesh);
+  const pos = oldMesh ? oldMesh.position.clone() : new THREE.Vector3(p.x, 0, p.z);
+  const ry = oldMesh ? oldMesh.rotation.y : p.ry;
+  if (oldMesh) scene.remove(oldMesh);
+
+  const label = isMe ? { ...p, name: p.name + ' (you)' } : p;
+  const mesh = buildSkinMesh(label);
+  mesh.position.copy(pos);
+  mesh.rotation.y = ry;
+  if (!p.alive) ghostify(mesh);
+  scene.add(mesh);
+
+  if (isMe) myMesh = mesh;
+  else others[p.id].mesh = mesh;
+  updateNameTags();
 }
 
 // ---------- joining ----------
@@ -394,7 +548,7 @@ function enterLobby(reply) {
   }
   me = reply.you;
   hostId = reply.room.hostId;
-  myMesh = makeCharacter(me.color, me.name + ' (you)', false);
+  myMesh = buildSkinMesh({ ...me, name: me.name + ' (you)' });
   myMesh.position.set(me.x, 0, me.z);
   scene.add(myMesh);
   Object.values(reply.room.players).forEach((p) => { if (p.id !== me.id) addOther(p); });
@@ -403,15 +557,17 @@ function enterLobby(reply) {
   setDisplay('menu', 'none');
   setDisplay('lobby', 'flex');
   renderLobby();
+  updateNameTags();
 }
 
 function addOther(p) {
-  const mesh = makeCharacter(p.color, p.name, p.role === 'seeker');
+  const mesh = buildSkinMesh(p);
   mesh.position.set(p.x, 0, p.z);
   mesh.rotation.y = p.ry;
   if (!p.alive) ghostify(mesh);
   scene.add(mesh);
   others[p.id] = { mesh, target: { x: p.x, z: p.z, ry: p.ry }, data: p };
+  updateNameTags();
 }
 
 function removeOther(id) {
@@ -467,7 +623,6 @@ $('joinBtn').addEventListener('click', () => {
 });
 $('startBtn').addEventListener('click', () => socket.emit('startGame'));
 
-// ---------- lobby events ----------
 socket.on('playerJoined', (p) => { addOther(p); renderLobby(); });
 socket.on('playerLeft', (id) => { removeOther(id); renderLobby(); updateHidersLeft(); });
 socket.on('hostIs', (id) => { hostId = id; renderLobby(); });
@@ -475,15 +630,13 @@ socket.on('hostIs', (id) => { hostId = id; renderLobby(); });
 // ---------- round start ----------
 socket.on('gameStarted', (data) => {
   gamePhase = 'hide';
-  // Rebuild every character with fresh role info & spawn positions
+  mySkin = { shape: 'char', color: null };
   Object.keys(others).forEach(removeOther);
   Object.values(data.players).forEach((p) => {
     if (p.id === me.id) {
       me = p;
-      scene.remove(myMesh);
-      myMesh = makeCharacter(p.color, p.name + ' (you)', p.role === 'seeker');
+      rebuildMesh(me, true);
       myMesh.position.set(p.x, 0, p.z);
-      scene.add(myMesh);
     } else {
       addOther(p);
     }
@@ -491,6 +644,7 @@ socket.on('gameStarted', (data) => {
 
   myRole = me.role;
   myAlive = true;
+  stunnedUntil = 0;
   timerEndsAt = Date.now() + data.hideSeconds * 1000;
 
   setDisplay('lobby', 'none');
@@ -504,14 +658,18 @@ socket.on('gameStarted', (data) => {
     roleBox.textContent = '👁 SEEKER';
     roleBox.className = 'hudBox seeker';
     setDisplay('blindfold', 'flex');
+    setDisplay('disguiseBtn', 'none');
     $('banner').style.display = 'none';
   } else {
     roleBox.textContent = '🫥 HIDER';
     roleBox.className = 'hudBox hider';
-    $('banner').textContent = 'HIDE! The seeker opens their eyes soon…';
+    $('banner').textContent = 'Disguise yourself and HIDE!';
     $('banner').style.display = 'block';
+    setDisplay('disguiseBtn', 'block');
   }
+  refreshPanelSelection();
   updateHidersLeft();
+  updateNameTags();
 });
 
 // ---------- hide -> seek ----------
@@ -521,29 +679,52 @@ socket.on('phaseChanged', (data) => {
   timerEndsAt = Date.now() + data.seconds * 1000;
   setDisplay('blindfold', 'none');
   if (myRole === 'seeker') {
-    $('banner').textContent = 'GO! Find them all before time runs out.';
+    $('banner').textContent = 'GO! Something out there doesn\'t belong.';
     setDisplay('tagBtn', 'block');
   } else {
-    $('banner').textContent = 'The seeker is loose. Stay hidden!';
+    $('banner').textContent = 'The seeker is loose. Don\'t. Move.';
   }
   $('banner').style.display = 'block';
   setTimeout(() => { $('banner').style.display = 'none'; }, 3500);
 });
 
-// ---------- someone got caught ----------
+// ---------- disguises ----------
+socket.on('skinChanged', (data) => {
+  const o = others[data.id];
+  if (!o) return;
+  o.data.skin = data.skin;
+  rebuildMesh(o.data, false);
+});
+
+// ---------- catches ----------
 socket.on('playerTagged', (data) => {
   toast(`${data.name} was caught!`);
   if (data.id === me.id) {
     myAlive = false;
     me.alive = false;
-    ghostify(myMesh);
+    me.skin = { shape: 'char', color: null }; // disguise drops — the reveal
+    rebuildMesh(me, true);
+    setDisplay('disguiseBtn', 'none');
+    setDisplay('disguisePanel', 'none');
     $('banner').textContent = 'You were caught! Spectating…';
     $('banner').style.display = 'block';
   } else if (others[data.id]) {
     others[data.id].data.alive = false;
-    ghostify(others[data.id].mesh);
+    others[data.id].data.skin = { shape: 'char', color: null };
+    rebuildMesh(others[data.id].data, false);
   }
   updateHidersLeft();
+});
+
+// ---------- the whiff ----------
+socket.on('seekerWhiffed', (data) => {
+  if (myRole === 'seeker') {
+    stunnedUntil = Date.now() + data.seconds * 1000;
+    setDisplay('stunFlash', 'flex');
+    setTimeout(() => setDisplay('stunFlash', 'none'), data.seconds * 1000);
+  } else {
+    toast('The seeker grabbed a real prop! Stunned 😂');
+  }
 });
 
 function updateHidersLeft() {
@@ -555,8 +736,12 @@ function updateHidersLeft() {
 socket.on('gameOver', (data) => {
   gamePhase = 'over';
   setDisplay('tagBtn', 'none');
+  setDisplay('disguiseBtn', 'none');
+  setDisplay('disguisePanel', 'none');
   setDisplay('blindfold', 'none');
+  setDisplay('stunFlash', 'none');
   $('banner').style.display = 'none';
+  updateNameTags(); // the big reveal — every disguised player's name pops up
 
   const title = $('resultsTitle');
   if (data.winner === 'seeker') {
@@ -587,15 +772,14 @@ socket.on('backToLobby', (snapshot) => {
   myRole = null;
   myAlive = true;
   hostId = snapshot.hostId;
+  mySkin = { shape: 'char', color: null };
 
   Object.keys(others).forEach(removeOther);
   Object.values(snapshot.players).forEach((p) => {
     if (p.id === me.id) {
       me = p;
-      scene.remove(myMesh);
-      myMesh = makeCharacter(p.color, p.name + ' (you)', false);
+      rebuildMesh(me, true);
       myMesh.position.set(p.x, 0, p.z);
-      scene.add(myMesh);
     } else {
       addOther(p);
     }
@@ -604,9 +788,12 @@ socket.on('backToLobby', (snapshot) => {
   setDisplay('results', 'none');
   setDisplay('hud', 'none');
   setDisplay('tagBtn', 'none');
+  setDisplay('disguiseBtn', 'none');
+  setDisplay('disguisePanel', 'none');
   setDisplay('controlsHint', 'none');
   setDisplay('lobby', 'flex');
   renderLobby();
+  updateNameTags();
 });
 
 socket.on('disconnect', () => {
@@ -614,7 +801,52 @@ socket.on('disconnect', () => {
 });
 
 // ============================================================
-// 5. CONTROLS — keyboard, mouse, and touch (joystick + look)
+// 5. DISGUISE PANEL (hiders only)
+// ============================================================
+const swatchesEl = $('swatches');
+SWATCH_COLORS.forEach((hex) => {
+  const b = document.createElement('button');
+  b.className = 'swatch';
+  b.style.background = hex;
+  b.dataset.color = hex;
+  b.setAttribute('aria-label', 'Paint color ' + hex);
+  b.addEventListener('click', () => {
+    mySkin.color = mySkin.color === hex ? null : hex; // tap again to unpaint
+    sendSkin();
+  });
+  swatchesEl.appendChild(b);
+});
+
+document.querySelectorAll('.shapeBtn').forEach((b) => {
+  b.addEventListener('click', () => {
+    mySkin.shape = b.dataset.shape;
+    sendSkin();
+  });
+});
+
+function sendSkin() {
+  if (myRole !== 'hider' || !myAlive) return;
+  me.skin = { ...mySkin };
+  rebuildMesh(me, true);
+  socket.emit('setSkin', mySkin);
+  refreshPanelSelection();
+}
+
+function refreshPanelSelection() {
+  document.querySelectorAll('.shapeBtn').forEach((b) =>
+    b.classList.toggle('sel', b.dataset.shape === mySkin.shape));
+  document.querySelectorAll('.swatch').forEach((b) =>
+    b.classList.toggle('sel', b.dataset.color === mySkin.color));
+}
+
+$('disguiseBtn').addEventListener('click', () => {
+  const open = $('disguisePanel').style.display === 'block';
+  setDisplay('disguisePanel', open ? 'none' : 'block');
+});
+$('closePanel').addEventListener('click', () => setDisplay('disguisePanel', 'none'));
+
+// ============================================================
+// 6. CONTROLS
 // ============================================================
 const keys = {};
 addEventListener('keydown', (e) => {
@@ -638,7 +870,6 @@ addEventListener('mousemove', (e) => {
 });
 addEventListener('mouseup', () => { mouseDown = false; });
 
-// Touch: left half of the screen is a movement joystick, right half looks around
 const joy = { active: false, id: null, ox: 0, oy: 0, dx: 0, dy: 0 };
 const look = { active: false, id: null, lx: 0, ly: 0 };
 
@@ -705,16 +936,16 @@ function collide(pos) {
   pos.z = Math.min(LIMIT, Math.max(-LIMIT, pos.z));
 }
 
-// Am I allowed to move right now?
 function canMove() {
   if (!myMesh || !myAlive) return false;
-  if (gamePhase === 'hide' && myRole === 'seeker') return false; // blindfolded
-  if (gamePhase === 'over' || gamePhase === 'lobby') return gamePhase === 'lobby';
+  if (gamePhase === 'hide' && myRole === 'seeker') return false;
+  if (Date.now() < stunnedUntil) return false;
+  if (gamePhase === 'over') return false;
   return true;
 }
 
 // ============================================================
-// 6. GAME LOOP
+// 7. GAME LOOP
 // ============================================================
 const clock = new THREE.Clock();
 let sendTimer = 0;
@@ -729,7 +960,6 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.1);
 
-  // Countdown displays
   if (gamePhase === 'hide' || gamePhase === 'seek') {
     const remaining = timerEndsAt - Date.now();
     $('timerBox').textContent = formatTime(remaining);
@@ -737,7 +967,6 @@ function animate() {
   }
 
   if (myMesh) {
-    // Input: keyboard OR joystick
     let ix = 0, iz = 0;
     if (keys['KeyW'] || keys['ArrowUp']) iz -= 1;
     if (keys['KeyS'] || keys['ArrowDown']) iz += 1;
@@ -756,13 +985,12 @@ function animate() {
       myMesh.rotation.y = Math.atan2(dx, dz);
     }
 
-    // Camera: the seeker plays in FIRST PERSON during a round
-    // (limited vision = hiding actually works); everyone else is third person.
+    // Camera: seeker plays first person during rounds
     const firstPerson = myRole === 'seeker' && (gamePhase === 'hide' || gamePhase === 'seek');
-    myMesh.visible = !firstPerson; // don't show your own body from inside it
+    myMesh.visible = !firstPerson;
     if (firstPerson) {
-      myMesh.rotation.y = camYaw + Math.PI; // others see you facing where you look
-      const pitchFP = camPitch - 0.45;      // re-center so the default view is level
+      myMesh.rotation.y = camYaw + Math.PI;
+      const pitchFP = camPitch - 0.45;
       const eyeHeight = 1.7;
       camera.position.set(myMesh.position.x, eyeHeight, myMesh.position.z);
       camera.lookAt(
@@ -780,7 +1008,6 @@ function animate() {
       camera.lookAt(myMesh.position.x, 1.4, myMesh.position.z);
     }
 
-    // Report position to server
     sendTimer += dt;
     if (sendTimer > 0.05) {
       sendTimer = 0;
@@ -792,19 +1019,17 @@ function animate() {
       }
     }
 
-    // Seeker: glow the TAG button when a hider is in range
     if (myRole === 'seeker' && gamePhase === 'seek') {
       let inRange = false;
       Object.values(others).forEach((o) => {
         if (o.data.role !== 'hider' || !o.data.alive) return;
         const d = Math.hypot(o.mesh.position.x - myMesh.position.x, o.mesh.position.z - myMesh.position.z);
-        if (d < 2.4) inRange = true;
+        if (d < 2.6) inRange = true;
       });
       $('tagBtn').classList.toggle('inRange', inRange);
     }
   }
 
-  // Smooth remote players
   const glide = 1 - Math.pow(0.0005, dt);
   Object.values(others).forEach((o) => {
     o.mesh.position.x += (o.target.x - o.mesh.position.x) * glide;
