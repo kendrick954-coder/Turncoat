@@ -1,7 +1,7 @@
 // ============================================================
-// TURNCOAT — Milestone 2 server
-// New in M2: lobby with host, Seeker/Hider roles, hide phase,
-// seek phase with countdown, tagging, and win conditions.
+// TURNCOAT — Milestone 3 server
+// New in M3: the disguise system. Hiders can repaint themselves
+// and morph into props. Seekers who grab a real prop get stunned.
 // ============================================================
 
 const express = require('express');
@@ -18,11 +18,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ---------------- Game settings (tweak freely!) ----------------
 const MAX_PLAYERS = 10;
 const MIN_PLAYERS = 2;        // 2 lets you test alone with two tabs; 3+ is the real game
-const HIDE_SECONDS = 20;      // hiders get this long before the seeker is released
-const SEEK_SECONDS = 120;     // seeker has this long to find everyone
-const TAG_DISTANCE = 2.4;     // how close the seeker must be to tag (in world units)
-const TAG_COOLDOWN_MS = 700;  // stops tag-button spamming
-const RESULTS_SECONDS = 7;    // how long the win screen shows before returning to lobby
+const HIDE_SECONDS = 30;      // a bit longer now — hiders need time to disguise
+const SEEK_SECONDS = 150;     // seeker time (they're in first person and can be fooled now)
+const TAG_DISTANCE = 2.6;
+const TAG_COOLDOWN_MS = 700;
+const WHIFF_STUN_MS = 2000;   // grab a real prop = frozen this long
+const RESULTS_SECONDS = 7;
+
+// What hiders are allowed to turn into / paint themselves
+const SHAPES = ['char', 'crate', 'rock', 'pillar'];
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
 const rooms = {};
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -49,13 +54,12 @@ function randomSpawn() {
   return { x: (Math.random() - 0.5) * 16, y: 0, z: (Math.random() - 0.5) * 16 };
 }
 
-// A safe summary of the room to send to clients (no internal timers etc.)
+function defaultSkin() {
+  return { shape: 'char', color: null }; // null = the player's own color
+}
+
 function roomSnapshot(room) {
-  return {
-    state: room.state,
-    hostId: room.hostId,
-    players: room.players
-  };
+  return { state: room.state, hostId: room.hostId, players: room.players };
 }
 
 function clearTimers(room) {
@@ -75,12 +79,13 @@ function startGame(code) {
     const p = room.players[id];
     p.role = id === seekerId ? 'seeker' : 'hider';
     p.alive = true;
+    p.skin = defaultSkin();
     const s = randomSpawn();
     p.x = s.x; p.y = 0; p.z = s.z; p.ry = 0;
   });
-  // Seeker starts at the center, facing the arena
   const seeker = room.players[seekerId];
   seeker.x = 0; seeker.z = 0;
+  seeker.stunnedUntil = 0;
 
   room.state = 'hide';
   room.seekerId = seekerId;
@@ -94,13 +99,11 @@ function startGame(code) {
   });
   console.log(`[room ${code}] round started — seeker: ${seeker.name}`);
 
-  // Hide phase ends -> seek phase begins
   room.timers.push(setTimeout(() => {
     if (!rooms[code] || room.state !== 'hide') return;
     room.state = 'seek';
     io.to(code).emit('phaseChanged', { phase: 'seek', seconds: SEEK_SECONDS });
 
-    // Seek phase ends -> any hider still alive means hiders win
     room.timers.push(setTimeout(() => {
       if (!rooms[code] || room.state !== 'seek') return;
       endGame(code, 'hiders');
@@ -120,44 +123,41 @@ function endGame(code, winner) {
   const seeker = room.players[room.seekerId];
 
   io.to(code).emit('gameOver', {
-    winner, // 'seeker' or 'hiders'
+    winner,
     seekerName: seeker ? seeker.name : '???',
     survivors
   });
   console.log(`[room ${code}] round over — ${winner} win`);
 
-  // Back to the lobby after the results screen
   room.timers.push(setTimeout(() => {
     if (!rooms[code]) return;
     room.state = 'lobby';
     room.seekerId = null;
-    Object.values(room.players).forEach((p) => { p.role = null; p.alive = true; });
+    Object.values(room.players).forEach((p) => {
+      p.role = null; p.alive = true; p.skin = defaultSkin();
+    });
     io.to(code).emit('backToLobby', roomSnapshot(room));
   }, RESULTS_SECONDS * 1000));
 }
 
-// If someone leaves mid-round, make sure the round still makes sense
 function checkRoundAfterLeave(code) {
   const room = rooms[code];
   if (!room) return;
-  const inRound = room.state === 'hide' || room.state === 'seek';
-  if (!inRound) return;
+  if (room.state !== 'hide' && room.state !== 'seek') return;
 
   const players = Object.values(room.players);
   const seekerGone = !room.players[room.seekerId];
   const aliveHiders = players.filter((p) => p.role === 'hider' && p.alive);
 
-  if (players.length < 2 || seekerGone) {
-    endGame(code, 'hiders'); // seeker rage-quit counts as a hider win :)
-  } else if (aliveHiders.length === 0) {
-    endGame(code, 'seeker');
-  }
+  if (players.length < 2 || seekerGone) endGame(code, 'hiders');
+  else if (aliveHiders.length === 0) endGame(code, 'seeker');
 }
 
 // ---------------- Connections ----------------
 io.on('connection', (socket) => {
   let roomCode = null;
   let lastTagAt = 0;
+  let lastSkinAt = 0;
 
   function addPlayerToRoom(code, rawName, respond) {
     const room = rooms[code];
@@ -174,8 +174,10 @@ io.on('connection', (socket) => {
       name: cleanName(rawName),
       color,
       x: spawn.x, y: 0, z: spawn.z, ry: 0,
-      role: null,   // 'seeker' | 'hider' | null in lobby
-      alive: true
+      role: null,
+      alive: true,
+      skin: defaultSkin(),
+      stunnedUntil: 0
     };
 
     room.players[socket.id] = player;
@@ -206,7 +208,7 @@ io.on('connection', (socket) => {
   socket.on('startGame', () => {
     const room = rooms[roomCode];
     if (!room || room.state !== 'lobby') return;
-    if (socket.id !== room.hostId) return; // only the host can start
+    if (socket.id !== room.hostId) return;
     if (Object.keys(room.players).length < MIN_PLAYERS) return;
     startGame(roomCode);
   });
@@ -216,9 +218,9 @@ io.on('connection', (socket) => {
     if (!room || !data) return;
     const player = room.players[socket.id];
     if (!player) return;
-    // Tagged players are frozen; the seeker is frozen during the hide phase
     if (!player.alive) return;
     if (room.state === 'hide' && player.role === 'seeker') return;
+    if (player.stunnedUntil && Date.now() < player.stunnedUntil) return; // whiff penalty
 
     player.x = Number(data.x) || 0;
     player.y = Number(data.y) || 0;
@@ -230,8 +232,26 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Seeker pressed the TAG button — the server decides if it counts,
-  // so nobody can cheat by editing their own game page.
+  // Hider changed their disguise (paint color and/or prop shape)
+  socket.on('setSkin', (data) => {
+    const room = rooms[roomCode];
+    if (!room || !data) return;
+    const player = room.players[socket.id];
+    if (!player || player.role !== 'hider' || !player.alive) return;
+    if (room.state !== 'hide' && room.state !== 'seek') return;
+
+    const now = Date.now();
+    if (now - lastSkinAt < 150) return; // gentle rate limit
+    lastSkinAt = now;
+
+    const shape = SHAPES.includes(data.shape) ? data.shape : 'char';
+    const color = (typeof data.color === 'string' && HEX_COLOR.test(data.color)) ? data.color : null;
+
+    player.skin = { shape, color };
+    socket.to(roomCode).emit('skinChanged', { id: socket.id, skin: player.skin });
+  });
+
+  // Seeker tag attempt. Hit a hider = caught. Hit nothing = stunned!
   socket.on('tryTag', () => {
     const room = rooms[roomCode];
     if (!room || room.state !== 'seek') return;
@@ -240,9 +260,9 @@ io.on('connection', (socket) => {
 
     const now = Date.now();
     if (now - lastTagAt < TAG_COOLDOWN_MS) return;
+    if (seeker.stunnedUntil && now < seeker.stunnedUntil) return;
     lastTagAt = now;
 
-    // Find the closest living hider within reach
     let closest = null;
     let closestDist = TAG_DISTANCE;
     Object.values(room.players).forEach((p) => {
@@ -251,8 +271,15 @@ io.on('connection', (socket) => {
       if (dist < closestDist) { closest = p; closestDist = dist; }
     });
 
-    if (!closest) return;
+    if (!closest) {
+      // WHIFF — the seeker lunged at furniture. Freeze them and tell the room.
+      seeker.stunnedUntil = now + WHIFF_STUN_MS;
+      io.to(roomCode).emit('seekerWhiffed', { seconds: WHIFF_STUN_MS / 1000 });
+      return;
+    }
+
     closest.alive = false;
+    closest.skin = defaultSkin(); // the reveal: disguise drops when you're caught
     io.to(roomCode).emit('playerTagged', { id: closest.id, name: closest.name });
     console.log(`[room ${roomCode}] ${closest.name} was tagged`);
 
@@ -267,7 +294,6 @@ io.on('connection', (socket) => {
     delete room.players[socket.id];
     socket.to(roomCode).emit('playerLeft', socket.id);
 
-    // Pass host to someone else if the host left
     if (room.hostId === socket.id) {
       room.hostId = Object.keys(room.players)[0] || null;
       if (room.hostId) io.to(roomCode).emit('hostIs', room.hostId);
@@ -287,6 +313,6 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log('TURNCOAT server (Milestone 2) running!');
+  console.log('TURNCOAT server (Milestone 3) running!');
   console.log(`Open http://localhost:${PORT} in your browser to play.`);
 });
