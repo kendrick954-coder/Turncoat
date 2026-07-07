@@ -137,6 +137,41 @@
   }
   #tagBtn.inRange { transform: scale(1.12); box-shadow: 0 0 34px rgba(230,57,70,0.9); }
 
+  /* Turncoat's leak button + hider's emergency vote button */
+  #leakBtn {
+    position: fixed; right: 18px; bottom: 124px; z-index: 12;
+    width: 92px; height: 64px; border-radius: 14px;
+    background: #3b2440; border: 2px solid #9b5de5; color: #e7d7ff;
+    font-size: 0.8rem; font-weight: 900; display: none;
+    box-shadow: 0 4px 18px rgba(155,93,229,0.4);
+  }
+  #voteBtn {
+    position: fixed; left: 18px; bottom: 22px; z-index: 12;
+    width: 84px; height: 64px; border-radius: 14px;
+    background: #402016; border: 2px solid var(--paint-yellow); color: var(--paint-yellow);
+    font-size: 0.72rem; font-weight: 900; display: none;
+  }
+
+  /* Emergency vote overlay */
+  #voteOverlay {
+    position: fixed; inset: 0; z-index: 25; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(6,9,6,0.92); padding: 16px;
+  }
+  #voteCard { width: min(94vw, 460px); max-height: 90vh; overflow-y: auto; }
+  #voteTitle { text-align: center; font-size: 1.3rem; font-weight: 900; color: var(--paint-yellow); letter-spacing: 0.06em; }
+  #voteSub { text-align: center; color: var(--muted); font-size: 0.85rem; margin: 6px 0 14px; }
+  .voteCandidate {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 11px 12px; margin-bottom: 8px; border-radius: 10px;
+    border: 2px solid var(--line); background: #0f1811; color: var(--chalk);
+    font-size: 0.95rem; font-weight: 700; cursor: pointer; text-align: left;
+  }
+  .voteCandidate.sel { border-color: var(--paint-yellow); background: #1d1c10; }
+  .voteCandidate:disabled { opacity: 0.5; cursor: default; }
+  #voteStatus { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 10px; min-height: 1.2em; }
+  #voteTimer { text-align: center; font-size: 1.6rem; font-weight: 900; margin-top: 4px; }
+
   /* Disguise button + panel (hiders only) */
   #disguiseBtn {
     position: fixed; right: 18px; bottom: 22px; z-index: 12;
@@ -204,7 +239,7 @@
 <div class="overlay" id="menu">
   <div class="card">
     <h1>TURNC<span class="odd">O</span>AT</h1>
-    <div class="tagline">milestone 3: the disguise</div>
+    <div class="tagline">milestone 4: the turncoat</div>
     <label for="playerName">Your name</label>
     <input id="playerName" maxlength="12" placeholder="e.g. Alex" autocomplete="off" />
     <label for="joinCode">Room code (to join a friend)</label>
@@ -244,7 +279,19 @@
 </div>
 <div id="stunFlash">YOU GRABBED A REAL PROP<br />STUNNED!</div>
 <button id="tagBtn">TAG</button>
+<button id="leakBtn">📡 LEAK<br />positions</button>
+<button id="voteBtn">🚨 CALL<br />VOTE</button>
 <button id="disguiseBtn">🎭<br />DISGUISE</button>
+
+<div id="voteOverlay">
+  <div class="card" id="voteCard">
+    <div id="voteTitle">🚨 EMERGENCY VOTE</div>
+    <div id="voteSub"></div>
+    <div id="voteCandidates"></div>
+    <div id="voteTimer">25</div>
+    <div id="voteStatus"></div>
+  </div>
+</div>
 
 <div id="disguisePanel">
   <div class="panelTitle">Become…</div>
@@ -509,6 +556,46 @@ const others = {};
 let timerEndsAt = 0;
 let mySkin = { shape: 'char', color: null };
 
+// Turncoat state
+let amTurncoat = false;
+let leakAvailable = false;
+let voteAvailable = false;   // one emergency vote per round, shared by all hiders
+let voting = false;          // is a vote happening right now?
+let myVote = null;
+let pausedTimerText = null;  // frozen countdown text while voting
+
+// Beacons: red markers over exposed hiders, visible when the server says so.
+// Kept separate from player meshes so disguise changes can't break them.
+const beacons = new Map(); // playerId -> { mesh, until }
+function addBeacon(playerId, seconds) {
+  removeBeacon(playerId);
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(0.4, 0.8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff2244 })
+  );
+  cone.rotation.x = Math.PI; // point downward
+  scene.add(cone);
+  beacons.set(playerId, { mesh: cone, until: Date.now() + seconds * 1000 });
+}
+function removeBeacon(playerId) {
+  const b = beacons.get(playerId);
+  if (b) { scene.remove(b.mesh); beacons.delete(playerId); }
+}
+function updateBeacons() {
+  const now = Date.now();
+  beacons.forEach((b, id) => {
+    if (now > b.until) { removeBeacon(id); return; }
+    const target = id === (me && me.id) ? myMesh : (others[id] && others[id].mesh);
+    if (!target) { removeBeacon(id); return; }
+    b.mesh.position.set(
+      target.position.x,
+      3.0 + Math.sin(now / 180) * 0.25, // bobbing
+      target.position.z
+    );
+    b.mesh.rotation.y += 0.05;
+  });
+}
+
 const $ = (id) => document.getElementById(id);
 function setDisplay(id, v) { $(id).style.display = v; }
 
@@ -573,6 +660,7 @@ function addOther(p) {
 function removeOther(id) {
   const o = others[id];
   if (o) { scene.remove(o.mesh); delete others[id]; }
+  removeBeacon(id);
 }
 
 function everyone() {
@@ -631,6 +719,12 @@ socket.on('hostIs', (id) => { hostId = id; renderLobby(); });
 socket.on('gameStarted', (data) => {
   gamePhase = 'hide';
   mySkin = { shape: 'char', color: null };
+  amTurncoat = false;
+  leakAvailable = false;
+  voteAvailable = data.turncoatActive; // vote only exists when a snake does
+  voting = false;
+  myVote = null;
+  beacons.forEach((_, id) => removeBeacon(id));
   Object.keys(others).forEach(removeOther);
   Object.values(data.players).forEach((p) => {
     if (p.id === me.id) {
@@ -659,14 +753,18 @@ socket.on('gameStarted', (data) => {
     roleBox.className = 'hudBox seeker';
     setDisplay('blindfold', 'flex');
     setDisplay('disguiseBtn', 'none');
+    setDisplay('voteBtn', 'none');
     $('banner').style.display = 'none';
   } else {
     roleBox.textContent = '🫥 HIDER';
     roleBox.className = 'hudBox hider';
-    $('banner').textContent = 'Disguise yourself and HIDE!';
+    $('banner').textContent = data.turncoatActive
+      ? 'Disguise and HIDE! (One of your fellow hiders is a traitor…)'
+      : 'Disguise yourself and HIDE!';
     $('banner').style.display = 'block';
     setDisplay('disguiseBtn', 'block');
   }
+  setDisplay('leakBtn', 'none');
   refreshPanelSelection();
   updateHidersLeft();
   updateNameTags();
@@ -683,9 +781,140 @@ socket.on('phaseChanged', (data) => {
     setDisplay('tagBtn', 'block');
   } else {
     $('banner').textContent = 'The seeker is loose. Don\'t. Move.';
+    if (myAlive && voteAvailable) setDisplay('voteBtn', 'block');
+    if (amTurncoat && leakAvailable) setDisplay('leakBtn', 'block');
   }
   $('banner').style.display = 'block';
   setTimeout(() => { $('banner').style.display = 'none'; }, 3500);
+});
+
+// ---------- the turncoat's secret ----------
+socket.on('youAreTurncoat', () => {
+  amTurncoat = true;
+  leakAvailable = true;
+  const roleBox = $('roleBox');
+  roleBox.textContent = '🐍 TURNCOAT';
+  roleBox.className = 'hudBox seeker'; // red — you're on the seeker's side
+  $('banner').textContent =
+    'You are the TURNCOAT. Blend in with the hiders… and betray them. You win if the seeker wins.';
+  $('banner').style.display = 'block';
+});
+
+socket.on('leakConfirmed', () => {
+  leakAvailable = false;
+  setDisplay('leakBtn', 'none');
+  toast('📡 Leak sent. The seeker sees them all…');
+});
+
+socket.on('leakInfo', (data) => {
+  // Seeker only: beacons over every living hider
+  data.ids.forEach((id) => addBeacon(id, data.seconds));
+  toast('📡 Anonymous tip: positions revealed!');
+});
+
+socket.on('staticNoise', () => {
+  toast('📻 …did you hear static?');
+});
+
+socket.on('exposedHider', (data) => {
+  // Seeker only: an innocent was ejected — track them
+  addBeacon(data.id, data.seconds);
+  toast('🚨 The huddle exposed someone — GO!');
+});
+
+// ---------- emergency vote ----------
+socket.on('voteStarted', (data) => {
+  voting = true;
+  myVote = null;
+  setDisplay('voteBtn', 'none');
+  setDisplay('disguisePanel', 'none');
+  pausedTimerText = $('timerBox').textContent;
+  $('timerBox').textContent = 'VOTE';
+
+  $('voteSub').textContent = `${data.callerName} called a huddle. Who is the Turncoat?`;
+  const box = $('voteCandidates');
+  box.innerHTML = '';
+  const iCanVote = myRole === 'hider' && myAlive;
+
+  data.candidates.forEach((c) => {
+    const b = document.createElement('button');
+    b.className = 'voteCandidate';
+    b.dataset.target = c.id;
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = c.color;
+    b.appendChild(dot);
+    b.appendChild(document.createTextNode(c.name + (me && c.id === me.id ? ' (you)' : '')));
+    b.disabled = !iCanVote;
+    b.addEventListener('click', () => castVote(c.id));
+    box.appendChild(b);
+  });
+  const skip = document.createElement('button');
+  skip.className = 'voteCandidate';
+  skip.dataset.target = 'skip';
+  skip.appendChild(document.createTextNode('🤝 Skip — trust everyone'));
+  skip.disabled = !iCanVote;
+  skip.addEventListener('click', () => castVote('skip'));
+  box.appendChild(skip);
+
+  $('voteStatus').textContent = iCanVote ? 'Tap a name to vote.' : 'The hiders are deciding…';
+  let secs = data.seconds;
+  $('voteTimer').textContent = secs;
+  const iv = setInterval(() => {
+    secs--;
+    $('voteTimer').textContent = Math.max(0, secs);
+    if (secs <= 0 || !voting) clearInterval(iv);
+  }, 1000);
+
+  setDisplay('voteOverlay', 'flex');
+});
+
+function castVote(targetId) {
+  if (!voting || myVote !== null) return;
+  myVote = targetId;
+  socket.emit('castVote', { targetId });
+  document.querySelectorAll('.voteCandidate').forEach((b) => {
+    b.classList.toggle('sel', b.dataset.target === targetId);
+    b.disabled = true;
+  });
+  $('voteStatus').textContent = 'Vote locked in. Waiting for the others…';
+}
+
+socket.on('voteProgress', (data) => {
+  if (!voting) return;
+  $('voteStatus').textContent = `${data.voted}/${data.total} votes are in…`;
+});
+
+socket.on('voteResult', (data) => {
+  voting = false;
+  setDisplay('voteOverlay', 'none');
+  timerEndsAt = Date.now() + data.resumeSeconds * 1000;
+
+  if (!data.ejectedId) {
+    toast('🤝 No one was ejected.');
+  } else if (data.wasTurncoat) {
+    toast(`🐍 ${data.ejectedName} was the TURNCOAT! Ejected!`);
+    if (me && data.ejectedId === me.id) {
+      myAlive = false;
+      me.alive = false;
+      setDisplay('leakBtn', 'none');
+      setDisplay('disguiseBtn', 'none');
+      $('banner').textContent = 'They found you out. Spectating…';
+      $('banner').style.display = 'block';
+    }
+    const o = others[data.ejectedId];
+    if (o) { o.data.alive = false; o.data.skin = { shape: 'char', color: null }; rebuildMesh(o.data, false); }
+    else if (me && data.ejectedId === me.id) { me.skin = { shape: 'char', color: null }; rebuildMesh(me, true); }
+  } else {
+    toast(`😬 ${data.ejectedName} was INNOCENT — and now the seeker knows where they are!`);
+    if (me && data.ejectedId === me.id) {
+      $('banner').textContent = 'They voted YOU. The seeker sees you — RUN!';
+      $('banner').style.display = 'block';
+      setTimeout(() => { $('banner').style.display = 'none'; }, 4000);
+    }
+  }
+  updateHidersLeft();
+  updateNameTags();
 });
 
 // ---------- disguises ----------
@@ -706,6 +935,8 @@ socket.on('playerTagged', (data) => {
     rebuildMesh(me, true);
     setDisplay('disguiseBtn', 'none');
     setDisplay('disguisePanel', 'none');
+    setDisplay('voteBtn', 'none');
+    setDisplay('leakBtn', 'none');
     $('banner').textContent = 'You were caught! Spectating…';
     $('banner').style.display = 'block';
   } else if (others[data.id]) {
@@ -735,12 +966,17 @@ function updateHidersLeft() {
 // ---------- round over ----------
 socket.on('gameOver', (data) => {
   gamePhase = 'over';
+  voting = false;
+  setDisplay('voteOverlay', 'none');
   setDisplay('tagBtn', 'none');
+  setDisplay('voteBtn', 'none');
+  setDisplay('leakBtn', 'none');
   setDisplay('disguiseBtn', 'none');
   setDisplay('disguisePanel', 'none');
   setDisplay('blindfold', 'none');
   setDisplay('stunFlash', 'none');
   $('banner').style.display = 'none';
+  beacons.forEach((_, id) => removeBeacon(id));
   updateNameTags(); // the big reveal — every disguised player's name pops up
 
   const title = $('resultsTitle');
@@ -754,6 +990,11 @@ socket.on('gameOver', (data) => {
     $('resultsDetail').textContent = data.survivors.length
       ? `Survived: ${data.survivors.join(', ')}`
       : `The seeker gave up — hiders take it.`;
+  }
+  if (data.turncoatName) {
+    $('resultsDetail').textContent += data.turncoatWon
+      ? ` 🐍 The Turncoat was ${data.turncoatName} — and they WON with the seeker.`
+      : ` 🐍 The Turncoat was ${data.turncoatName} — and they failed.`;
   }
   setDisplay('results', 'flex');
 
@@ -773,6 +1014,14 @@ socket.on('backToLobby', (snapshot) => {
   myAlive = true;
   hostId = snapshot.hostId;
   mySkin = { shape: 'char', color: null };
+  amTurncoat = false;
+  leakAvailable = false;
+  voteAvailable = false;
+  voting = false;
+  beacons.forEach((_, id) => removeBeacon(id));
+  setDisplay('voteOverlay', 'none');
+  setDisplay('voteBtn', 'none');
+  setDisplay('leakBtn', 'none');
 
   Object.keys(others).forEach(removeOther);
   Object.values(snapshot.players).forEach((p) => {
@@ -844,6 +1093,16 @@ $('disguiseBtn').addEventListener('click', () => {
   setDisplay('disguisePanel', open ? 'none' : 'block');
 });
 $('closePanel').addEventListener('click', () => setDisplay('disguisePanel', 'none'));
+
+$('leakBtn').addEventListener('click', () => {
+  if (amTurncoat && leakAvailable && gamePhase === 'seek') socket.emit('useLeak');
+});
+$('voteBtn').addEventListener('click', () => {
+  if (myRole === 'hider' && myAlive && voteAvailable && gamePhase === 'seek' && !voting) {
+    socket.emit('callVote');
+    voteAvailable = false;
+  }
+});
 
 // ============================================================
 // 6. CONTROLS
@@ -938,6 +1197,7 @@ function collide(pos) {
 
 function canMove() {
   if (!myMesh || !myAlive) return false;
+  if (voting) return false; // everyone freezes for the huddle
   if (gamePhase === 'hide' && myRole === 'seeker') return false;
   if (Date.now() < stunnedUntil) return false;
   if (gamePhase === 'over') return false;
@@ -960,11 +1220,12 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.1);
 
-  if (gamePhase === 'hide' || gamePhase === 'seek') {
+  if ((gamePhase === 'hide' || gamePhase === 'seek') && !voting) {
     const remaining = timerEndsAt - Date.now();
     $('timerBox').textContent = formatTime(remaining);
     if (gamePhase === 'hide') $('blindfoldTimer').textContent = Math.max(0, Math.ceil(remaining / 1000));
   }
+  updateBeacons();
 
   if (myMesh) {
     let ix = 0, iz = 0;
