@@ -1,5 +1,5 @@
 // ============================================================
-// TURNCOAT — Milestone 4 server
+// TURNCOAT — Milestone 5 server
 // New in M4: the Turncoat. One hider is secretly working for
 // the seeker: they can LEAK everyone's position once per round.
 // Hiders get one emergency vote to eject the traitor — but
@@ -166,6 +166,13 @@ function endGame(code, winner) {
   const turncoat = room.turncoatId ? room.players[room.turncoatId] : null;
   const turncoatWon = !!turncoat && winner === 'seeker' && !room.turncoatEjected;
 
+  // Session scoreboard awards
+  Object.values(room.players).forEach((p) => {
+    if (p.role === 'hider' && p.alive && !(turncoat && p.id === turncoat.id)) p.score += 2; // survived
+  });
+  if (winner === 'seeker' && seeker) seeker.score += 2;   // clean sweep bonus
+  if (turncoatWon) turncoat.score += 3;                    // betrayal pays
+
   io.to(code).emit('gameOver', {
     winner,
     seekerName: seeker ? seeker.name : '???',
@@ -303,7 +310,8 @@ io.on('connection', (socket) => {
       role: null,
       alive: true,
       skin: defaultSkin(),
-      stunnedUntil: 0
+      stunnedUntil: 0,
+      score: 0
     };
 
     room.players[socket.id] = player;
@@ -463,6 +471,7 @@ io.on('connection', (socket) => {
 
     closest.alive = false;
     closest.skin = defaultSkin();
+    seeker.score += 1; // +1 per catch
     io.to(roomCode).emit('playerTagged', { id: closest.id, name: closest.name });
     console.log(`[room ${roomCode}] ${closest.name} was tagged`);
 
@@ -495,6 +504,6 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log('TURNCOAT server (Milestone 4) running!');
+  console.log('TURNCOAT server (Milestone 5) running!');
   console.log(`Open http://localhost:${PORT} in your browser to play.`);
 });
